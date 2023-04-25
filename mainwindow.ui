@@ -14,23 +14,6 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget"/>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>1173</width>
-     <height>24</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="menuHallo">
-    <property name="title">
-     <string>Hallo</string>
-    </property>
-   </widget>
-   <addaction name="menuHallo"/>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>

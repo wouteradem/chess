@@ -25,6 +25,6 @@ private:
     ChessView *m_view;
     ChessAlgorithm *m_algorithm;
     QPoint m_clickPoint;
-    ChessView::Highlight *m_selectedField;
+    Highlight *m_selectedField;
 };
 #endif // MAINWINDOW_H

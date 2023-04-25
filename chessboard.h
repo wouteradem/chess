@@ -41,8 +41,8 @@ public:
     // Allow to move piece.
     void movePiece(int fromColumn, int fromRank, int toColumn, int toRank);
 
-
     void setFen(const QString &fen);
+
 
 signals:
     // Signals for the QPROPERTY.

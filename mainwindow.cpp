@@ -4,6 +4,7 @@
 #include "chessview.h"
 #include "fieldhighlight.h"
 #include <QLayout>
+#include <QPushButton>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -32,11 +33,22 @@ MainWindow::MainWindow(QWidget *parent)
     setCentralWidget(m_view);
 
     m_view->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    m_view->setFieldSize(QSize(50, 50));
+    m_view->setFieldSize(QSize(100, 100));
 
     //m_selectedField = 0;
 
     connect(m_view, SIGNAL(clicked(QPoint)), this, SLOT(viewClicked(QPoint)));
+\
+    // TODO: Set title.
+    // TODO: Set non-resizable.
+    // TODO: Need to add Click event to reset chess board.
+    QPushButton *btnReset = new QPushButton(m_view);
+    btnReset->setText("New Game");
+    btnReset->resize(200, 50);
+    btnReset->move(900, 10);
+    btnReset->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+
+    // Add another widget to display the moves.
 
 }
 
@@ -50,18 +62,27 @@ void MainWindow::viewClicked(const QPoint &field)
 {
     if (m_clickPoint.isNull())
     {
+        qDebug() << "Click point is null";
+        // Only allow to select chess pieces.
         if (m_view->board()->data(field.x(), field.y()) != ' ')
         {
             m_clickPoint = field;
-            m_selectedField = new FieldHighlight(field.x(), field.y(), QColor(255, 0, 0, 50));
+
+            // Highlight the selected piece.
+            m_selectedField = new FieldHighlight(field.x(), field.y(), QColor(246, 246, 132));
             m_view->addHighlight(m_selectedField);
+
+            // Highligt possible moves for selected piece.
+            m_algorithm->setPossibleMoves(field.x(), field.y());
         }
     }
     else
     {
+        qDebug() << "Want to move a piece!";
         if (field != m_clickPoint)
         {
-            m_view->board()->movePiece(m_clickPoint.x(), m_clickPoint.y(), field.x(), field.y());
+            //m_view->board()->movePiece(m_clickPoint.x(), m_clickPoint.y(), field.x(), field.y());
+            m_algorithm->move(m_clickPoint, field);
         }
         m_clickPoint = QPoint();
         m_view->removeHighlight(m_selectedField);
@@ -69,6 +90,3 @@ void MainWindow::viewClicked(const QPoint &field)
         m_selectedField = 0;
     }
 }
-
-
-
