@@ -3,8 +3,10 @@
 #include "chessalgorithm.h"
 #include "chessview.h"
 #include "fieldhighlight.h"
+#include <QObject>
 #include <QLayout>
 #include <QPushButton>
+#include <QListWidget>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -26,29 +28,47 @@ MainWindow::MainWindow(QWidget *parent)
     m_view->setPiece('n', QIcon(":/pieces/Chess_ndt45.svg"));
     m_view->setPiece('b', QIcon(":/pieces/Chess_bdt45.svg"));
 
+    // Create new Chess game.
     m_algorithm = new ChessAlgorithm(this);
     m_algorithm->newGame();
-
     m_view->setBoard(m_algorithm->board());
-    setCentralWidget(m_view);
 
+    setCentralWidget(m_view);
     m_view->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_view->setFieldSize(QSize(100, 100));
 
-    //m_selectedField = 0;
-
+    // Capture the event when the board is clicked
     connect(m_view, SIGNAL(clicked(QPoint)), this, SLOT(viewClicked(QPoint)));
 \
-    // TODO: Set title.
     // TODO: Set non-resizable.
-    // TODO: Need to add Click event to reset chess board.
-    QPushButton *btnReset = new QPushButton(m_view);
+    // TODO: Put this into functions.
+    QPushButton *btnReset = new QPushButton(this);
     btnReset->setText("New Game");
     btnReset->resize(200, 50);
     btnReset->move(900, 10);
     btnReset->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    btnReset->connect(btnReset, SIGNAL(clicked()), this, SLOT(btnClicked()));
+    btnReset->show();
 
-    // Add another widget to display the moves.
+    QPushButton *btnLoad = new QPushButton(this);
+    btnLoad->setText("Load Game");
+    btnLoad->resize(200, 50);
+    btnLoad->move(900, 70);
+    btnLoad->show();
+
+    QPushButton *btnSave = new QPushButton(this);
+    btnSave->setText("Save Game");
+    btnSave->resize(200, 50);
+    btnSave->move(900, 130);
+    btnSave->show();
+
+    // Widget to display moves.
+    QListWidget *lstMoves = new QListWidget(this);
+    lstMoves->move(900, 200);
+    lstMoves->resize(200, 500);
+
+    // We want to react on a move.
+    //lstMoves->connect(lstMoves, SIGNAL(), this, SLOT(addItem()))
 
 }
 
@@ -58,8 +78,19 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
+void MainWindow::btnClicked()
+{
+    qDebug() << "I'm clicked!";
+
+    m_algorithm->newGame();
+    m_view->setBoard(m_algorithm->board());
+}
+
 void MainWindow::viewClicked(const QPoint &field)
 {
+    qDebug() << "I'm clicked!";
+    // Did the user click somewhere?
     if (m_clickPoint.isNull())
     {
         qDebug() << "Click point is null";
@@ -73,7 +104,7 @@ void MainWindow::viewClicked(const QPoint &field)
             m_view->addHighlight(m_selectedField);
 
             // Highligt possible moves for selected piece.
-            m_algorithm->setPossibleMoves(field.x(), field.y());
+            m_algorithm->setMoves(field.x(), field.y());
         }
     }
     else
@@ -81,11 +112,14 @@ void MainWindow::viewClicked(const QPoint &field)
         qDebug() << "Want to move a piece!";
         if (field != m_clickPoint)
         {
-            //m_view->board()->movePiece(m_clickPoint.x(), m_clickPoint.y(), field.x(), field.y());
-            m_algorithm->move(m_clickPoint, field);
+             m_algorithm->move(m_clickPoint, field);
         }
+
+        // Reset.
         m_clickPoint = QPoint();
         m_view->removeHighlight(m_selectedField);
+
+        // Clean up.
         delete m_selectedField;
         m_selectedField = 0;
     }

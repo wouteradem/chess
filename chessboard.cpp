@@ -9,6 +9,7 @@ ChessBoard::ChessBoard(int ranks, int columns, QObject *parent)
 {
     m_ranks = ranks;
     m_columns = columns;
+    m_nrOfMoves = 0;
 
     // Once ranks and columns are set, make an empty board.
     initBoard();
@@ -22,6 +23,11 @@ int ChessBoard::ranks() const
 int ChessBoard::columns() const
 {
     return m_columns;
+}
+
+int ChessBoard::nrOfMoves() const
+{
+    return m_nrOfMoves;
 }
 
 void ChessBoard::setRanks(int newRanks)
@@ -50,6 +56,16 @@ void ChessBoard::setColumns(int newColumns)
 
     // Emit signal that columns has changed.
     emit columnsChanged(m_columns);
+}
+
+void ChessBoard::setNrOfMoves(int nr)
+{
+    if (nrOfMoves() == nr) return;
+
+    m_nrOfMoves++;
+
+    // Emit signal that number of moves has changed.
+    emit nrOfMovesChanged(m_nrOfMoves);
 }
 
 /*
@@ -124,10 +140,6 @@ bool ChessBoard::setDataInternal(int column, int rank, char value)
  */
 void ChessBoard::movePiece(int fromColumn, int fromRank, int toColumn, int toRank)
 {
-    // Fist get the character using data function.
-
-    qDebug() << "Moving piece " << data(fromColumn, fromRank) << " to " << toColumn << " " << toRank;
-
     setData(toColumn, toRank, data(fromColumn, fromRank));
     setData(fromColumn, fromRank, ' ');
 }

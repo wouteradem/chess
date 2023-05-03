@@ -1,6 +1,7 @@
 #include "chessalgorithm.h"
 #include "chessboard.h"
 #include <QDebug>
+#include <QString>
 
 ChessAlgorithm::ChessAlgorithm(QObject *parent)
     : QObject{parent}
@@ -80,73 +81,316 @@ void ChessAlgorithm::setCurrentPlayer(Player value)
 
 bool ChessAlgorithm::move(int colFrom, int rankFrom, int colTo, int rankTo)
 {
-    /*
-    // Prevent compile time warnings.
-    Q_UNUSED(colFrom)
-    Q_UNUSED(rankFrom)
-    Q_UNUSED(colTo)
-    Q_UNUSED(rankTo)
-
-    return false;
-    */
-
+    // Capture edge case when there is somehow now player selected.
     if (currentPlayer() == NoPlayer)
         return false;
 
-    // Get the piece that moves.
+    // Check if the current player took the right piece.
     char source = board()->data(colFrom, rankFrom);
 
-    // Check which piece is moved.
-    if (currentPlayer() == WhitePlayer)
+    qDebug() << source;
+    qDebug() << currentPlayer();
+
+    if (currentPlayer() == BlackPlayer && source == 'P')
     {
-        switch(source)
-        {
-        case 'P':
-            qDebug() << "White pawn moves";
-            if (checkMove(source, colFrom, rankFrom, colTo, rankTo))
-            {
-                board()->movePiece(colFrom, rankFrom, colTo, rankTo);
-            }
-            else
-            {
-                qDebug() << "Illegal move";
-            }
-            break;
-        }
+        qDebug() << "[Error ]Wrong player. Black player is is to move.";
+        return false;
     }
-    else if (m_currentPlayer == BlackPlayer)
+    if (currentPlayer() == WhitePlayer && (source == 'p' || source == 'k'))
     {
-        switch(source)
-        {
-        case 'p':
-            qDebug() << "Black pawn moves";
-            break;
-        }
+        qDebug() << "[Error ]Wrong player. White player is is to move.";
+        return false;
     }
+
+    // Move now.
+    board()->movePiece(colFrom, rankFrom, colTo, rankTo);
+
+    // Change the player.
+    setCurrentPlayer(currentPlayer() == WhitePlayer ? BlackPlayer : WhitePlayer);
 
     return true;
 }
 
 bool ChessAlgorithm::move(const QPoint &from, const QPoint &to)
 {
-    return move(from.x(), from.y(), to.x(), to.y());
+    QString index;
+    char source = board()->data(from.x(), from.y());
+
+    // Check if we are within the board.
+    if (to.x() < 1 || to.x() > board()->columns()) return false;
+    if (to.y() < 1 || to.y() > board()->ranks()) return false;
+
+    // Get the position the player wants to move on board.
+    if (to.x() + 1 == from.x())
+    {
+        index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), true);
+    }
+    else
+    {
+        index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), false);
+    }
+
+    qDebug() << index;
+
+    if (m_moves.contains(index))
+    {
+        return move(from.x(), from.y(), to.x(), to.y());
+    }
+
+    qDebug() << "Illegal move detected";
+
+    return false;
 }
 
-bool ChessAlgorithm::checkMove(char source, int colFrom, int rankFrom, int colTo, int rankTo)
-{
-    // Check if the move is in the list of available moves.
-    return true;
-}
-
-void ChessAlgorithm::setPossibleMoves(int colFrom, int rankFrom)
+void ChessAlgorithm::setMoves(int colFrom, int rankFrom)
 {
     char source = board()->data(colFrom, rankFrom);
-    qDebug() << "Getting possible moves for piece " << source;
+    qDebug() << "Getting possible moves for piece" << source;
 
     switch (source)
     {
-    case 'P':
-        qDebug() << "Moving pawn";
+    case 'P': case 'p':
+        setPawnMoves(source, colFrom, rankFrom);
         break;
+    case 'N': case 'n':
+        setKnightMoves(source, colFrom, rankFrom);
     }
+}
+
+void ChessAlgorithm::setKnightMoves(char piece, int colFrom, int rankFrom)
+{
+    if (piece == 'N' || piece == 'n')
+    {
+        QString whitePieces = "PRNBQK";
+        QString blackPieces = "prnbqk";
+        QString move = "";
+        int colTo, rankTo, x, y;
+
+        // Knight has 8 possible moves.
+        for (size_t i=0; i<8; i++)
+        {
+            switch (i)
+            {
+            case 0:
+                x = 1;
+                y = 2;
+                break;
+            case 1:
+                x = 1;
+                y = -2;
+                break;
+
+            case 2:
+                x = -1;
+                y = 2;
+                break;
+
+            case 3:
+                x = -1;
+                y = -2;
+                break;
+
+            case 4:
+                x = 2;
+                y = 1;
+                break;
+
+            case 5:
+                x = 2;
+                y = -1;
+                break;
+
+            case 6:
+                x = -2;
+                y = 1;
+                break;
+
+            case 7:
+                x = -2;
+                y = -1;
+                break;
+            }
+            colTo = colFrom + x;
+            rankTo = rankFrom + y;
+
+            // Check if on board.
+            if (onBoard(colTo, rankTo))
+            {
+                // Check what is on that field.
+                char toField = board()->data(colTo, rankTo);
+                // Field must be empty and NOT contain a white piece.
+                qDebug() << "To field: " << toField;
+                if (piece == 'N')
+                {
+                    if (toField == ' ' && !whitePieces.contains(toField))
+                    {
+                        if (blackPieces.contains(toField))
+                        {
+                            move = toAlgebraic(piece, colFrom, rankFrom, colTo, rankTo, true);
+                            qDebug() << "[Log] Legal move. Capture of black piece.";
+                        }
+                        else
+                        {
+                            move = toAlgebraic(piece, colFrom, rankFrom, colTo, rankTo, false);
+                            qDebug() << "[Log] Legal move. To empty place.";
+
+                        }
+                        m_moves[move] = false;
+                    }
+                }
+                else if (piece == 'n')
+                {
+                    if (toField == ' ' && !blackPieces.contains(toField))
+                    {
+                        if (whitePieces.contains(toField))
+                        {
+                            move = toAlgebraic(piece, colFrom, rankFrom, colTo, rankTo, true);
+                            qDebug() << "[Log] Legal move. Capture of white piece.";
+                        }
+                        else
+                        {
+                            move = toAlgebraic(piece, colFrom, rankFrom, colTo, rankTo, false);
+                            qDebug() << "[Log] Legal move. To empty place.";
+
+                        }
+                        m_moves[move] = false;
+                    }
+                }
+            }
+            else
+            {
+                qDebug() << "[Error] Illegal move. Off board.";
+            }
+        }
+    }
+}
+
+void ChessAlgorithm::setBishopMoves(char piece, int colFrom, int rankFrom)
+{
+    QString move = "";
+    if (piece == 'B')
+    {
+        qDebug() << "Moving white bishop.";
+    }
+    else if (piece == 'b')
+    {
+        qDebug() << "Moving black left.";
+    }
+}
+
+void ChessAlgorithm::setPawnMoves(char piece, int colFrom, int rankFrom)
+{
+    QString move = "";
+    if (piece == 'P')
+    {
+        if (rankFrom == 2)
+        {
+            move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom + 2, false);
+            m_moves[move] = false;
+        }
+        move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom + 1, false);
+        m_moves[move] = false;
+
+        // Add take moves.
+        char leftTake = board()->data(colFrom - 1, rankFrom + 1);
+        char rightTake = board()->data(colFrom + 1, rankFrom + 1);
+        QString whitePieces = "PRNBQK";
+        if (leftTake != ' ' && !whitePieces.contains(leftTake))
+        {
+            move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);
+            m_moves[move] = false;
+        }
+        else if (rightTake != ' ' && !whitePieces.contains(rightTake))
+        {
+            move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom + 1, true);
+            m_moves[move] = false;
+        }
+        // En passant.
+        if (rankFrom == 5)
+        {
+            leftTake = board()->data(colFrom - 1, rankFrom);
+            rightTake = board()->data(colFrom + 1, rankFrom);
+            if (leftTake != ' ' && !whitePieces.contains(leftTake))
+            {
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);
+                m_moves[move] = false;
+            }
+            else if (rightTake != ' ' && !whitePieces.contains(rightTake))
+            {
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom + 1, true);
+                m_moves[move] = false;
+            }
+            // TODO: We need to remove the black piece.
+        }
+    }
+    else if (piece == 'p')
+    {
+        move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom - 1, false);
+        m_moves[move] = false;
+        if (rankFrom == 7)
+        {
+            QString move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom - 2, false);
+            m_moves[move] = false;
+        }
+
+        // Add take moves.
+        // TODO: Add en-passent capture.
+        char leftTake = board()->data(colFrom + 1, rankFrom - 1);
+        char rightTake = board()->data(colFrom - 1, rankFrom - 1);
+        QString blackPieces = "prnbqk";
+        if (leftTake != ' ' && !blackPieces.contains(leftTake))
+        {
+            QString move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom - 1, true);
+            m_moves[move] = false;
+        }
+        else if (rightTake != ' ' && !blackPieces.contains(rightTake))
+        {
+            QString move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom - 1, true);
+            m_moves[move] = false;
+        }
+    }
+}
+
+// Converts a chess move to algebraic notation.
+// https://www.chess.com/terms/chess-notation.
+QString ChessAlgorithm::toAlgebraic(char piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canTake)
+{
+    QString algNot = "";
+
+    // Pawns don't have the piece.
+    if (piece == 'P' || piece == 'p')
+    {
+        QChar colToChar = QChar('a' + colTo - 1);
+        QChar colFromChar = QChar('a' + colFrom - 1);
+
+        // Case capture a piece and normal pawn move.
+        algNot = canTake ? colFromChar + 'x' + colToChar + QString::number(rankTo) : colToChar + QString::number(rankTo);
+    }
+    else if (piece == 'N' || piece == 'n')
+    {
+        QChar colToChar = QChar('a' + colTo - 1);
+        QChar colFromChar = QChar('a' + colFrom - 1);
+
+        // Case capture a piece and normal pawn move.
+        algNot = canTake ? 'N' + colFromChar + 'x' + colToChar + QString::number(rankTo) : 'N' + colToChar + QString::number(rankTo);
+    }
+
+    qDebug() << algNot;
+
+    return algNot;
+}
+
+bool ChessAlgorithm::onBoard(int colTo, int rankTo)
+{
+    bool onBoard = false;
+    if (colTo < 1 || colTo > board()->columns())
+    {
+        return onBoard;
+    }
+    if (rankTo < 1 || rankTo > board()->ranks())
+    {
+        return onBoard;
+    }
+
+    return true;
 }

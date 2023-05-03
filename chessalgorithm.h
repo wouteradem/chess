@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QPoint>
+#include <QHash>
 #include "chessboard.h"
 
 
@@ -29,7 +30,7 @@ public:
 
     inline Result result() const { return m_result; }
     inline Player currentPlayer() const { return m_currentPlayer; }
-    void setPossibleMoves(int colFrom, int rankFrom);
+    void setMoves(int colFrom, int rankFrom);
 
 public slots:
     // Allow other chess variants to overwrite in derived class.
@@ -49,11 +50,19 @@ protected:
     void setBoard(ChessBoard *board);
     void setResult(Result);
     void setCurrentPlayer(Player);
-    virtual bool checkMove(char source, int colFrom, int rankFrom, int colTo, int rankTo);
 
 private:
     Result m_result;
     Player m_currentPlayer;
+    QHash<QString, bool> m_moves;
+
+    // GamePlay functions.
+    void setPawnMoves(char piece, int colFrom, int rankFrom);
+    void setKnightMoves(char piece, int colFrom, int rankFrom);
+    void setBishopMoves(char piece, int colFrom, int rankFrom);
+
+    QString toAlgebraic(char piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canTake);
+    bool onBoard(int colTo, int rankTo);
 };
 
 #endif // CHESSALGORITHM_H

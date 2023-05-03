@@ -19,6 +19,7 @@ public:
 
 public slots:
     void viewClicked(const QPoint &field);
+    void btnClicked();
 
 private:
     Ui::MainWindow *ui;

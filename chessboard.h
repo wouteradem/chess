@@ -12,16 +12,21 @@ class ChessBoard : public QObject
 
     // These properties behave like class data members.
     // Define the ranks property where ranks refers to const method and ranksChanges is the signal that is emitted
+
     // whenever ranks value is changed.
     Q_PROPERTY(int ranks READ ranks NOTIFY ranksChanged)
+
     // Define the columns property.
     Q_PROPERTY(int columns READ columns NOTIFY columnsChanged)
 
+    // Property that contains the total number of moves played on the board.
+    Q_PROPERTY(int nrOfMoves READ nrOfMoves NOTIFY nrOfMovesChanged)
+
     int m_ranks;
     int m_columns;
+    int m_nrOfMoves;
 
     // Vector of characters where the character represents the chess piece.
-    // We use FEN notation.
     // A space character means the field is emtpy.
     QVector<char> m_boardData;
 
@@ -32,6 +37,7 @@ public:
     // Getter methods.
     int ranks() const;
     int columns() const;
+    int nrOfMoves() const;
 
     char data(int column, int rank) const;
 
@@ -41,6 +47,7 @@ public:
     // Allow to move piece.
     void movePiece(int fromColumn, int fromRank, int toColumn, int toRank);
 
+    // Method to set chess pieces on board according to FEN notation.
     void setFen(const QString &fen);
 
 
@@ -48,6 +55,7 @@ signals:
     // Signals for the QPROPERTY.
     void ranksChanged(int);
     void columnsChanged(int);
+    void nrOfMovesChanged(int);
 
     // Signal when something changed on the board.
     void dataChanged(int c, int r);
@@ -60,6 +68,7 @@ protected:
     // No need to make this public, but allow to overwrite.
     void setRanks(int newRanks);
     void setColumns(int newColumns);
+    void setNrOfMoves(int nr);
 
     // Initialises an empty chess board.
     void initBoard();
@@ -67,6 +76,7 @@ protected:
     // Actual workhorse that sets the data on the board.
     // Allow to make this overwritable.
     bool setDataInternal(int column, int rank, char value);
+
 };
 
 #endif // CHESSBOARD_H
