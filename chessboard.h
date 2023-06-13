@@ -2,6 +2,7 @@
 #define CHESSBOARD_H
 
 #include <QObject>
+#include <QHash>
 
 // Datastructure that contains the chess board mappings.
 class ChessBoard : public QObject
@@ -49,10 +50,10 @@ public:
 
     // Method to set chess pieces on board according to FEN notation.
     void setFen(const QString &fen);
+    QString getFen();
 
 
 signals:
-    // Signals for the QPROPERTY.
     void ranksChanged(int);
     void columnsChanged(int);
     void nrOfMovesChanged(int);
@@ -61,7 +62,7 @@ signals:
     void dataChanged(int c, int r);
 
     // Signal to reset the board.
-    void boardreset();
+    void boardReset();
 
 protected:
     // This can be kept part of the Chessboard class only.

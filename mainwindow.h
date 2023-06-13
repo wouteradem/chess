@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QLabel>
+#include <QListWidget>
 #include "chessview.h"
 #include "chessalgorithm.h"
 
@@ -14,18 +16,24 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 public slots:
     void viewClicked(const QPoint &field);
-    void btnClicked();
+    void playerChanged();
 
 private:
     Ui::MainWindow *ui;
     ChessView *m_view;
+    QLabel *m_lblPlayer;
+    QListWidget *m_lstMoves;
+    QListWidget *m_lstCompMoves;
+
     ChessAlgorithm *m_algorithm;
     QPoint m_clickPoint;
     Highlight *m_selectedField;
+    Highlight *m_possibleField;
 };
+
 #endif // MAINWINDOW_H

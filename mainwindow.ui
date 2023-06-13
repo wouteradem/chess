@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1173</width>
-    <height>796</height>
+    <width>1100</width>
+    <height>850</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Chess 2023</string>
+   <string>Schaken 2023</string>
   </property>
   <widget class="QWidget" name="centralwidget"/>
  </widget>

@@ -5,9 +5,9 @@
 #include <QPoint>
 #include <QHash>
 #include "chessboard.h"
+#include "uciengine.h"
 
 
-// Chess Algorithm that drives the game.
 class ChessAlgorithm : public QObject
 {
     Q_OBJECT
@@ -23,29 +23,32 @@ public:
     enum Player {NoPlayer, WhitePlayer, BlackPlayer};
     Q_ENUM(Player)
 
-    explicit ChessAlgorithm(QObject *parent = nullptr);
+    ChessAlgorithm(QObject *parent = nullptr);
 
     // Getter method to the board.
     ChessBoard* board() const;
 
     inline Result result() const { return m_result; }
     inline Player currentPlayer() const { return m_currentPlayer; }
+
+    // Sets the possible player moves, and engine moves.
     void setMoves(int colFrom, int rankFrom);
+    void setEngineMoves(int colFrom, int rankFrom);
+
+    QHash<QString, bool> getMoves() const {return m_moves; }
 
 public slots:
-    // Allow other chess variants to overwrite in derived class.
     virtual void newGame();
     virtual bool move(int colFrom, int rankFrom, int colTo, int rankTo);
     bool move(const QPoint &from, const QPoint &to);
+    QPoint toCoordinates(QString move);
 
 signals:
-    // Broadcast whenever the board has changed.
     void boardChanged(ChessBoard*);
     void endGame(Result);
     void currentPlayerChanged(Player);
 
 protected:
-    // Allow other chess variants to overwrite in derived class.
     virtual void setupBoard();
     void setBoard(ChessBoard *board);
     void setResult(Result);
@@ -55,13 +58,20 @@ private:
     Result m_result;
     Player m_currentPlayer;
     QHash<QString, bool> m_moves;
+    QHash<QString, bool> m_specialMoves;
+    QHash<QString, bool> m_engineMoves;
+    UciEngine *m_engine;
 
     // GamePlay functions.
     void setPawnMoves(char piece, int colFrom, int rankFrom);
     void setKnightMoves(char piece, int colFrom, int rankFrom);
     void setBishopMoves(char piece, int colFrom, int rankFrom);
+    void setRookMoves(char piece, int colFrom, int rankFrom);
+    void setQueenMoves(char piece, int colFrom, int rankFrom);
+    void setKingMoves(char piece, int colFrom, int rankFrom);
 
     QString toAlgebraic(char piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canTake);
+
     bool onBoard(int colTo, int rankTo);
 };
 

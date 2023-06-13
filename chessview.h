@@ -7,10 +7,8 @@
 #include "chessboard.h"
 #include "highlight.h"
 
-// Class that acts as the UI.
+// Custom QWidget that represents the chess Board.
 // The view renders the current state of the chess board and emits signals of the board.
-// Also signals user interactions like moving a piece, etc.
-// This is a QWidget.
 class ChessView : public QWidget
 {
     // Macro.
@@ -18,16 +16,19 @@ class ChessView : public QWidget
     Q_PROPERTY(QSize fieldSize READ fieldSize WRITE setFieldSize NOTIFY fieldSizeChanged)
 
 public:
-    explicit ChessView(QWidget *parent = nullptr);
+    // Constructor.
+    ChessView(QWidget *parent = nullptr);
+
     void setBoard(ChessBoard*);
 
-    // Getter method to get pointer to chess board.
+    // Getter method to get the chess board.
     ChessBoard* board() const;
 
     QSize fieldSize() const;
     void setFieldSize(const QSize &newFielSize);
     QSize sizeHint() const;
     QRect fieldRect(int column, int rank) const;
+    QRect fieldCircle(int column, int rank) const;
     QPoint fieldAt(const QPoint &pt) const;
 
     // Allow to repaint the widget when QEvent::Paint is fired.
@@ -65,6 +66,8 @@ private:
     // QPointer intialised m_board to NULL.
     QPointer<ChessBoard> m_board;
     QSize m_fieldSize;
+
+    // Key is char and value is the icon.
     QMap<char, QIcon> m_pieces;
     QList<Highlight*> m_highlights;
 

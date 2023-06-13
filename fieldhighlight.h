@@ -6,11 +6,12 @@
 class FieldHighlight: public Highlight
 {
 public:
-    enum {
-        Type = 1
+    enum HighLightType {
+        Rectangle = 1,
+        Circle = 2,
     };
 
-    FieldHighlight(int column, int rank, QColor color): m_field(column, rank), m_color(color) {}
+    FieldHighlight(int column, int rank, QColor color, HighLightType type): m_field(column, rank), m_color(color), m_type(type) {}
 
     inline int column() const
     {
@@ -29,12 +30,13 @@ public:
 
     int type() const
     {
-        return Type;
+        return m_type;
     }
 
 private:
     QPoint m_field;
     QColor m_color;
+    HighLightType m_type;
 };
 
 #endif // FIELDHIGHLIGHT_H

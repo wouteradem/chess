@@ -75,6 +75,7 @@ void ChessBoard::setNrOfMoves(int nr)
 void ChessBoard::initBoard()
 {
     m_boardData.fill(' ', ranks() * columns());
+    emit boardReset();
 }
 
 /*
@@ -83,26 +84,6 @@ void ChessBoard::initBoard()
  */
 char ChessBoard::data(int column, int rank) const
 {
-   /**
-    *    -----------------
-    *  8 | | | | | | | | |
-    *    -----------------
-    *  7 | | | | | | | | |
-    *    -----------------
-    *  6 | | | | | | | | |
-    *    -----------------
-    *  5 | | | | | | | | |
-    *    -----------------
-    *  4 | | | | |X| | | |
-    *    -----------------
-    *  3 | | | | | | | | |
-    *    -----------------
-    *  2 | | | | | | | | |
-    *    -----------------
-    *  1 | | | | | | | | |
-    *    -----------------
-    *     a b c d e f g h
-    */
     return m_boardData.at((rank - 1) * columns() + (column - 1));
 }
 
@@ -117,6 +98,7 @@ void ChessBoard::setData(int column, int rank, char value)
         emit dataChanged(column, rank);
     }
 }
+
 
 /*
  * Helper function that returns true if piece can be moved to
@@ -142,6 +124,7 @@ void ChessBoard::movePiece(int fromColumn, int fromRank, int toColumn, int toRan
 {
     setData(toColumn, toRank, data(fromColumn, fromRank));
     setData(fromColumn, fromRank, ' ');
+    QString testFen = getFen(); //TODO: Remove this.
 }
 
 /*
@@ -217,5 +200,53 @@ void ChessBoard::setFen(const QString &fen)
     }
 
     // Emit signal that the board is set.
-    emit boardreset();
+    emit boardReset();
+}
+
+QString ChessBoard::getFen()
+{
+    QString fen = "";
+    int size = m_boardData.size();
+    int nrEmptyFields;
+
+    for (auto i=1; i<=8; i++)
+    {
+        nrEmptyFields = 0;
+        int startIndex = size - 8*i;
+        int iter = 0;
+        while (iter < 8)
+        {
+            fen = fen;
+            int index = startIndex + iter;
+            QChar ch = m_boardData.at(index);
+            if (ch == ' ') // TODO: CHeck this...
+            {
+                nrEmptyFields += 1;
+            }
+            else
+            {
+                if (nrEmptyFields > 0)
+                {
+                    fen += QString::number(nrEmptyFields);
+                    nrEmptyFields = 0;
+                }
+                fen += ch;
+            }
+            iter++;
+        }
+        if (iter == 8)
+        {
+            if (nrEmptyFields > 0)
+            {
+                fen += QString::number(nrEmptyFields);
+            }
+            fen += "/";
+        }
+    }
+    // Remove last / from fen string.
+    fen.chop(1);
+
+    // Add the other parts to!
+
+    return fen;
 }

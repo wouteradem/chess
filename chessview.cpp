@@ -8,7 +8,6 @@ ChessView::ChessView(QWidget *parent): QWidget{parent} {}
 
 void ChessView::setBoard(ChessBoard *board)
 {
-    qDebug() << "Checking if board is already set";
     // If chess board already set, do nothing.
     if (m_board == board)
     {
@@ -16,13 +15,14 @@ void ChessView::setBoard(ChessBoard *board)
         return;
     }
 
-    if (m_board)
+    /*if (m_board)
     {
         // If m_board already set, then disconnect it.
         // This could be an "old" chess board.
         m_board->disconnect(this);
         qDebug() << "Disconnected board.";
-    }
+    }*/
+    m_board->disconnect(this);
 
     // Assign the board.
     m_board = board;
@@ -31,10 +31,10 @@ void ChessView::setBoard(ChessBoard *board)
     if (board)
     {
         connect(board, SIGNAL(dataChanged(int,int)), this, SLOT(update()));
-        connect(board, SIGNAL(boardreset()), this, SLOT(update()));
+        connect(board, SIGNAL(boardReset()), this, SLOT(update()));
     }
 
-    // Notify the layout system that this widget has changed and may need to change geomtry.
+    // Notify the layout system that this widget has changed and may need to change geometry.
     // Draw pieces on board.
     updateGeometry();
     qDebug() << "Updated geometry.";
@@ -88,6 +88,20 @@ QRect ChessView::fieldRect(int column, int rank) const
     int offset = fontMetrics().maxWidth();
 
     return fRect.translated(offset + 10, 10);
+}
+
+QRect ChessView::fieldCircle(int column, int rank) const
+{
+    if (!m_board) return QRect();
+
+    const QSize fs = fieldSize();
+    QRect fRect = QRect(
+        QPoint((column - 1) * fs.width(),
+               (m_board->ranks() - rank) * fs.height()), fs / 4);
+
+    int offset = fontMetrics().maxWidth();
+
+    return fRect.translated(offset + 50, 50);
 }
 
 QPoint ChessView::fieldAt(const QPoint &pt) const
@@ -192,6 +206,8 @@ void ChessView::drawField(QPainter *painter, int column, int rank)
 void ChessView::setPiece(char type, const QIcon &icon)
 {
     m_pieces.insert(type, icon);
+
+    // Schedules a repaint event.
     update();
 }
 
@@ -243,11 +259,22 @@ void ChessView::drawHighlights(QPainter *painter)
     for (int idx=0; idx < highlightCount(); ++idx)
     {
         Highlight *hl = highlight(idx);
-        if (hl->type() == FieldHighlight::Type)
+        FieldHighlight *fhl = static_cast<FieldHighlight*>(hl);
+        if (hl->type() == FieldHighlight::HighLightType::Rectangle)
         {
-            FieldHighlight *fhl = static_cast<FieldHighlight*>(hl);
             QRect rect = fieldRect(fhl->column(), fhl->rank());
             painter->fillRect(rect, fhl->color());
+        }
+        if (hl->type() == FieldHighlight::HighLightType::Circle)
+        {
+            QPen pen(QColor(214,214,188));
+            painter->setPen(pen);
+
+            QBrush brush(QColor(214,214,188));
+            painter->setBrush(brush);
+
+            QRect rect = fieldCircle(fhl->column(), fhl->rank());
+            painter->drawEllipse(rect);
         }
     }
 }
