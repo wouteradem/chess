@@ -8,6 +8,7 @@
 #include <QPushButton>
 #include <QListWidget>
 #include <QLabel>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -46,32 +47,38 @@ MainWindow::MainWindow(QWidget *parent)
     // Label to display current player.
     m_lblPlayer = new QLabel(this);
     m_lblPlayer->move(860, 100);
-    m_lblPlayer->resize(200, 20);
+    m_lblPlayer->resize(250, 40);
+
+    // Set font for label.
+    QFont font = m_lblPlayer->font();
+    font.setPointSize(30);
+    font.setBold(true);
+    m_lblPlayer->setFont(font);
     m_lblPlayer->setText("Wit aan zet!");
     m_lblPlayer->show();
 
-    // Connect the SIGNAL current player changed so we can update the UI.
+    // Connect SIGNAL current player changed so we can display current player in UI.
     connect(m_algorithm, &ChessAlgorithm::currentPlayerChanged, this, &MainWindow::playerChanged);
 
-    // Dummy label indicating moves of players.
+    // Dummy label indicating player moves.
     QLabel *m_lbl = new QLabel(this);
-    m_lbl->move(860, 180);
+    m_lbl->move(900, 180);
     m_lbl->resize(200, 20);
     m_lbl->setText("Zetten van spelers");
     m_lbl->show();
 
-    // List that contains the player moves.
+    // List contains player moves.
     m_lstMoves = new QListWidget(this);
     m_lstMoves->move(860, 200);
     m_lstMoves->resize(200, 180);
     m_lstMoves->show();
 
-    // Connect the SIGNAL board changed so we can update the UI.
-    //connect(m_algorithm, &ChessAlgorithm::boardChanged, this, &MainWindow::viewClicked);
+    // Connect SIGNAL for move so we can display move in UI.
+    connect(m_algorithm->board(), &ChessBoard::nrOfMovesChanged, this, &MainWindow::updateList);
 
-    // Dummy label indicating moves of computer.
+    // Dummy label indicating engine moves.
     QLabel *m_lblUci = new QLabel(this);
-    m_lblUci->move(860, 400);
+    m_lblUci->move(900, 400);
     m_lblUci->resize(200, 20);
     m_lblUci->setText("Zetten van computer");
     m_lblUci->show();
@@ -85,12 +92,31 @@ MainWindow::MainWindow(QWidget *parent)
     // This needs to connect to the UCI engine.
     //m_lstBestMoves->connect(m_lstBestMoves, SIGNAL(addItem()), this, SLOT(viewClicked()));
 
+    connect(m_algorithm, &ChessAlgorithm::checked, this, &MainWindow::highlightCheck);
+
+    // Connect SIGNAL when there is checkmate or stale mate.
+    connect(m_algorithm, &ChessAlgorithm::gameOver, this, &MainWindow::gameOver);
 }
 
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::updateList()
+{
+    QString move = m_algorithm->currentMove();
+    int nr = m_algorithm->board()->nrOfMoves();
+    if (nr > 0 && nr % 2 == 1)
+    {
+        m_lstMoves->addItem(QString::number((nr + 1)/2) + ".  " + move + "\t");
+    }
+    if (nr > 0 && nr % 2 == 0)
+    {
+        QListWidgetItem *item = m_lstMoves->item((nr - 1)/2);
+        item->setText(item->text() + move);
+    }
 }
 
 void MainWindow::playerChanged()
@@ -136,8 +162,14 @@ void MainWindow::viewClicked(const QPoint &field)
             {
                 qDebug() << iter.key() << ": " << iter.value();
                 QPoint p = m_algorithm->toCoordinates(iter.key());
-
-                m_possibleField = new FieldHighlight(p.x(), p.y(), QColor(217,216,191), FieldHighlight::Circle);
+                if (iter.key().contains("x"))
+                {
+                    m_possibleField = new FieldHighlight(p.x(), p.y(), QColor(250,244,220), FieldHighlight::Rectangle);
+                }
+                else
+                {
+                    m_possibleField = new FieldHighlight(p.x(), p.y(), QColor(250,244,220), FieldHighlight::Circle);
+                }
                 m_view->addHighlight(m_possibleField);
             }
         }
@@ -148,18 +180,6 @@ void MainWindow::viewClicked(const QPoint &field)
         if (field != m_clickPoint)
         {
             m_algorithm->move(m_clickPoint, field);
-            // Put the move into the UI.
-            //m_lstMoves->addItem("1.   ");
-            //m_lstMoves->addItem("2.   c3\t Kc6");
-
-            /*
-            QListWidgetItem *item = lstMoves->item(0);
-            item->setText(item->text() + "e4");
-
-            item = lstMoves->item(0);
-            item->setText(item->text() + "\t e5");
-            item->setBackground(Qt::green);
-            */
         }
 
         // Clean up piece highlight.
@@ -173,4 +193,25 @@ void MainWindow::viewClicked(const QPoint &field)
             m_view->removeHighlight(m_view->highlight(0));
         }
     }
+}
+
+void MainWindow::highlightCheck(const QPoint &p)
+{
+    qInfo() << Q_FUNC_INFO;
+
+    m_possibleField = new FieldHighlight(p.x(), p.y(), QColor(118,150,87), FieldHighlight::Rectangle);
+    m_view->addHighlight(m_possibleField);
+}
+
+void MainWindow::gameOver(ChessAlgorithm::Result result)
+{
+    QString text;
+    switch(result) {
+    case ChessAlgorithm::WhiteWin: text = "White wins!"; break;
+    case ChessAlgorithm::BlackWin: text = "Black wins!"; break;
+    default:
+        text = "It's a draw";
+    }
+
+    QMessageBox::information(this, "Game over", QStringLiteral("The game has ended. %1").arg(text));
 }

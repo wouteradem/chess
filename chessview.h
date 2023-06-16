@@ -40,8 +40,8 @@ public:
     void drawRank(QPainter *painter, int rank);
     void drawColumn(QPainter *painter, int column);
 
-    void setPiece(char type, const QIcon &icon);
-    QIcon piece(char type) const;
+    void setPiece(QChar type, const QIcon &icon);
+    QIcon piece(QChar type) const;
 
     void mouseReleaseEvent(QMouseEvent *event);
 
@@ -68,7 +68,7 @@ private:
     QSize m_fieldSize;
 
     // Key is char and value is the icon.
-    QMap<char, QIcon> m_pieces;
+    QMap<QChar, QIcon> m_pieces;
     QList<Highlight*> m_highlights;
 
 signals:

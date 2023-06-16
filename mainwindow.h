@@ -22,6 +22,11 @@ public:
 public slots:
     void viewClicked(const QPoint &field);
     void playerChanged();
+    void highlightCheck(const QPoint &field);
+
+private slots:
+    void gameOver(ChessAlgorithm::Result);
+    void updateList();
 
 private:
     Ui::MainWindow *ui;

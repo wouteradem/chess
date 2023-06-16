@@ -203,7 +203,7 @@ void ChessView::drawField(QPainter *painter, int column, int rank)
     painter->drawRect(rect);
 }
 
-void ChessView::setPiece(char type, const QIcon &icon)
+void ChessView::setPiece(QChar type, const QIcon &icon)
 {
     m_pieces.insert(type, icon);
 
@@ -211,7 +211,7 @@ void ChessView::setPiece(char type, const QIcon &icon)
     update();
 }
 
-QIcon ChessView::piece(char type) const
+QIcon ChessView::piece(QChar type) const
 {
     return m_pieces.value(type, QIcon());
 }
@@ -228,7 +228,7 @@ void ChessView::drawPiece(QPainter *painter, int column, int rank)
 
     QRect rect = fieldRect(column, rank);
 
-    char value = m_board->data(column, rank);
+    QChar value = m_board->data(column, rank);
 
     // Check if we are on empty field.
     if (value != ' ')

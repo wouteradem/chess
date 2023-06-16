@@ -11,73 +11,69 @@ class ChessBoard : public QObject
     // Pre-compiler now knows that this class needs to run through moc (Meta Object Compiler).
     Q_OBJECT
 
-    // These properties behave like class data members.
-    // Define the ranks property where ranks refers to const method and ranksChanges is the signal that is emitted
+    // Board properties.
+    Q_PROPERTY(int ranks MEMBER m_ranks READ ranks NOTIFY ranksChanged)
+    Q_PROPERTY(int columns MEMBER m_columns READ columns NOTIFY columnsChanged)
 
-    // whenever ranks value is changed.
-    Q_PROPERTY(int ranks READ ranks NOTIFY ranksChanged)
+    // Number of moves property.
+    Q_PROPERTY(int nrOfMoves MEMBER m_nrOfMoves READ nrOfMoves WRITE setNrOfMoves NOTIFY nrOfMovesChanged)
 
-    // Define the columns property.
-    Q_PROPERTY(int columns READ columns NOTIFY columnsChanged)
-
-    // Property that contains the total number of moves played on the board.
-    Q_PROPERTY(int nrOfMoves READ nrOfMoves NOTIFY nrOfMovesChanged)
-
-    int m_ranks;
-    int m_columns;
-    int m_nrOfMoves;
-
-    // Vector of characters where the character represents the chess piece.
-    // A space character means the field is emtpy.
-    QVector<char> m_boardData;
+    // Castle properties.
+    Q_PROPERTY(CastleType whiteCasteled MEMBER m_whiteCastled READ whiteCastled WRITE setWhiteCastled NOTIFY whiteHasCastled)
+    Q_PROPERTY(CastleType blackCasteled MEMBER m_blackCastled READ blackCastled WRITE setBlackCastled NOTIFY blackHasCastled)
 
 public:
-    // Don't allow for implicit conversions.
     explicit ChessBoard(int ranks=8, int columns=8, QObject *parent = nullptr);
+
+    enum CastleType {Short, Long};
+    Q_ENUM(CastleType)
 
     // Getter methods.
     int ranks() const;
     int columns() const;
     int nrOfMoves() const;
+    CastleType whiteCastled() const;
+    CastleType blackCastled() const;
 
-    char data(int column, int rank) const;
+    void setWhiteCastled(CastleType type);
+    void setBlackCastled(CastleType type);
+    void setNrOfMoves(int nr);
 
-    // Allow to set data on board.
-    void setData(int column, int rank, char value);
-
-    // Allow to move piece.
+    QChar data(int column, int rank) const;
+    QPoint point(QChar piece) const;
+    QHash<QPoint, QChar> points(QChar piece) const;
+    void setData(int column, int rank, QChar value);
     void movePiece(int fromColumn, int fromRank, int toColumn, int toRank);
 
-    // Method to set chess pieces on board according to FEN notation.
     void setFen(const QString &fen);
     QString getFen();
-
 
 signals:
     void ranksChanged(int);
     void columnsChanged(int);
-    void nrOfMovesChanged(int);
-
-    // Signal when something changed on the board.
+    void nrOfMovesChanged(QString);
+    void whiteHasCastled(CastleType);
+    void blackHasCastled(CastleType);
     void dataChanged(int c, int r);
-
-    // Signal to reset the board.
     void boardReset();
 
 protected:
-    // This can be kept part of the Chessboard class only.
-    // No need to make this public, but allow to overwrite.
     void setRanks(int newRanks);
     void setColumns(int newColumns);
-    void setNrOfMoves(int nr);
 
     // Initialises an empty chess board.
     void initBoard();
 
-    // Actual workhorse that sets the data on the board.
-    // Allow to make this overwritable.
-    bool setDataInternal(int column, int rank, char value);
+    bool setDataInternal(int column, int rank, QChar value);
 
+private:
+    int m_ranks;
+    int m_columns;
+    int m_nrOfMoves;
+    CastleType m_whiteCastled;
+    CastleType m_blackCastled;
+
+    QVector<QChar> m_boardData;
 };
 
 #endif // CHESSBOARD_H

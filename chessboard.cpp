@@ -1,9 +1,7 @@
 #include "chessboard.h"
 #include <QDebug>
+#include <QPoint>
 
-/*
- * Datastructure that contains the piece data and allows for piece movement.
- */
 ChessBoard::ChessBoard(int ranks, int columns, QObject *parent)
     : QObject{parent}
 {
@@ -28,6 +26,46 @@ int ChessBoard::columns() const
 int ChessBoard::nrOfMoves() const
 {
     return m_nrOfMoves;
+}
+
+ChessBoard::CastleType ChessBoard::whiteCastled() const
+{
+    return m_whiteCastled;
+}
+
+ChessBoard::CastleType ChessBoard::blackCastled() const
+{
+    return m_blackCastled;
+}
+
+void ChessBoard::setWhiteCastled(ChessBoard::CastleType type)
+{
+    if (type == CastleType::Long)
+    {
+        m_whiteCastled = CastleType::Long;
+    }
+    else if (type == CastleType::Short)
+    {
+        m_whiteCastled = CastleType::Short;
+    }
+
+    emit whiteHasCastled(type);
+}
+
+void ChessBoard::setBlackCastled(ChessBoard::CastleType type)
+{
+    if (type == CastleType::Long)
+    {
+        m_blackCastled = CastleType::Long;
+        movePiece(1, 8, 4, 8);
+    }
+    else if (type == CastleType::Short)
+    {
+        m_blackCastled = CastleType::Short;
+        movePiece(8, 8, 6, 8);
+    }
+
+    emit blackHasCastled(type);
 }
 
 void ChessBoard::setRanks(int newRanks)
@@ -60,12 +98,10 @@ void ChessBoard::setColumns(int newColumns)
 
 void ChessBoard::setNrOfMoves(int nr)
 {
-    if (nrOfMoves() == nr) return;
-
-    m_nrOfMoves++;
+    m_nrOfMoves += nr;
 
     // Emit signal that number of moves has changed.
-    emit nrOfMovesChanged(m_nrOfMoves);
+    emit nrOfMovesChanged("e4");
 }
 
 /*
@@ -82,16 +118,45 @@ void ChessBoard::initBoard()
  * Returns position on the board.
  * Based on return value of character we are able to identify a chess piece.
  */
-char ChessBoard::data(int column, int rank) const
+QChar ChessBoard::data(int column, int rank) const
 {
     return m_boardData.at((rank - 1) * columns() + (column - 1));
+}
+
+QPoint ChessBoard::point(QChar piece) const
+{
+    int index = m_boardData.indexOf(piece);
+
+    return QPoint(index / 8 + 1, index % 8 + 1);
+
+}
+
+QHash<QPoint, QChar> ChessBoard::points(QChar piece) const
+{
+    QHash<QPoint, QChar> points;
+    int index;
+
+    QVector<QChar> board(m_boardData);
+    while (board.contains(piece))
+    {
+        index = board.indexOf(piece);
+        board[index] = '?';
+        qDebug() << "Piece " << piece << " at index " << index;
+
+        int rank = index / 8 + 1;
+        int col = index % 8 + 1;
+
+        points[QPoint(col, rank)] = piece;
+    }
+
+    return points;
 }
 
 /*
  * Sets chess piece on postion at (rank, column)
  * and emits that data change.
  */
-void ChessBoard::setData(int column, int rank, char value)
+void ChessBoard::setData(int column, int rank, QChar value)
 {
     if (setDataInternal(column, rank, value))
     {
@@ -99,12 +164,11 @@ void ChessBoard::setData(int column, int rank, char value)
     }
 }
 
-
 /*
  * Helper function that returns true if piece can be moved to
  * given (rank, column).
  */
-bool ChessBoard::setDataInternal(int column, int rank, char value)
+bool ChessBoard::setDataInternal(int column, int rank, QChar value)
 {
     int index = (rank - 1) * columns() + (column - 1);
 
@@ -124,13 +188,13 @@ void ChessBoard::movePiece(int fromColumn, int fromRank, int toColumn, int toRan
 {
     setData(toColumn, toRank, data(fromColumn, fromRank));
     setData(fromColumn, fromRank, ' ');
-    QString testFen = getFen(); //TODO: Remove this.
+    setNrOfMoves(1);
 }
 
 /*
  * Helper function that sets the pieces on the board
  * according to the FEN code.
- * https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
+ * Written based on documentation in https://www.chess.com/terms/fen-chess.
  *
  * Example: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
  *
@@ -163,9 +227,9 @@ void ChessBoard::setFen(const QString &fen)
     QChar ch;
 
     // Start from top left a8 to h8 and go to h1.
-    for (int rank = ranks(); rank > 0; --rank)
+    for (auto rank = ranks(); rank > 0; --rank)
     {
-        for (int column = 1; column <= columnCount; ++column)
+        for (auto column = 1; column <= columnCount; ++column)
         {
             // Matches a number (e.g. 8 in the example).
             if (skip > 0)
@@ -203,6 +267,10 @@ void ChessBoard::setFen(const QString &fen)
     emit boardReset();
 }
 
+/*
+ * Helper function that gets a FEN code from the current pieces on the board.
+ * Written based on documentation in https://www.chess.com/terms/fen-chess.
+ */
 QString ChessBoard::getFen()
 {
     QString fen = "";
@@ -246,7 +314,32 @@ QString ChessBoard::getFen()
     // Remove last / from fen string.
     fen.chop(1);
 
-    // Add the other parts to!
+    // Add current player info.
 
+    // Add castling info.
+
+    // TODO: Add function canCastle.
+
+    /*
+     * if Player::whitePlayer:
+          if (canCastleShort() && canCastleLong())
+          {
+            fen += 'KQ';
+          }
+          else if (canCastleShort() && !canCastleLong())
+          {
+            fen += 'K'
+          }
+          else if (!canCastleShort() && canCastleLong())
+          {
+            fen += 'Q';
+          }
+          else
+          {
+            fen += '-';
+          }
+        }
+        else { // Do same for Black Player}
+    */
     return fen;
 }

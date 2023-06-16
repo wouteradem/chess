@@ -13,6 +13,7 @@ class ChessAlgorithm : public QObject
     Q_OBJECT
     Q_PROPERTY(Result result READ result CONSTANT)
     Q_PROPERTY(Player currentPlayer READ currentPlayer NOTIFY currentPlayerChanged)
+    Q_PROPERTY(QString currentMove READ currentMove WRITE setCurrentMove NOTIFY currentMoveChanged)
 
     ChessBoard *m_board;
 
@@ -30,10 +31,13 @@ public:
 
     inline Result result() const { return m_result; }
     inline Player currentPlayer() const { return m_currentPlayer; }
+    inline QString currentMove() const { return m_currentMove; }
 
     // Sets the possible player moves, and engine moves.
     void setMoves(int colFrom, int rankFrom);
     void setEngineMoves(int colFrom, int rankFrom);
+
+    bool check(QPoint &from);
 
     QHash<QString, bool> getMoves() const {return m_moves; }
 
@@ -45,32 +49,36 @@ public slots:
 
 signals:
     void boardChanged(ChessBoard*);
-    void endGame(Result);
+    void gameOver(ChessAlgorithm::Result);
+    void checked(QPoint);
     void currentPlayerChanged(Player);
+    void currentMoveChanged(QString);
 
 protected:
     virtual void setupBoard();
     void setBoard(ChessBoard *board);
     void setResult(Result);
     void setCurrentPlayer(Player);
+    void setCurrentMove(QString);
 
 private:
     Result m_result;
     Player m_currentPlayer;
+    QString m_currentMove;
     QHash<QString, bool> m_moves;
-    QHash<QString, bool> m_specialMoves;
     QHash<QString, bool> m_engineMoves;
     UciEngine *m_engine;
+    bool m_check;
 
     // GamePlay functions.
-    void setPawnMoves(char piece, int colFrom, int rankFrom);
-    void setKnightMoves(char piece, int colFrom, int rankFrom);
-    void setBishopMoves(char piece, int colFrom, int rankFrom);
-    void setRookMoves(char piece, int colFrom, int rankFrom);
-    void setQueenMoves(char piece, int colFrom, int rankFrom);
-    void setKingMoves(char piece, int colFrom, int rankFrom);
+    void setPawnMoves(QChar piece, int colFrom, int rankFrom);
+    void setKnightMoves(QChar piece, int colFrom, int rankFrom);
+    void setBishopMoves(QChar piece, int colFrom, int rankFrom);
+    void setRookMoves(QChar piece, int colFrom, int rankFrom);
+    void setQueenMoves(QChar piece, int colFrom, int rankFrom);
+    void setKingMoves(QChar piece, int colFrom, int rankFrom);
 
-    QString toAlgebraic(char piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canTake);
+    QString toAlgebraic(QChar piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canTake);
 
     bool onBoard(int colTo, int rankTo);
 };
