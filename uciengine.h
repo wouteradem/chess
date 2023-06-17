@@ -26,6 +26,7 @@ private slots:
 
 signals:
     void messageReceived(QString line);
+    void engineMove(QString);
 
 private:
     void parseLine(const QString &line);

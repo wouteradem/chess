@@ -86,6 +86,19 @@ void ChessAlgorithm::setCurrentMove(QString move)
     m_currentMove = move;
 }
 
+
+QString ChessAlgorithm::getFENBoard()
+{
+    // Get Engine move.
+    QString fenMove;
+    if (currentPlayer() == Player::WhitePlayer)
+        fenMove = board()->getFen('w');
+    else if (currentPlayer() == Player::BlackPlayer)
+        fenMove = board()->getFen('b');
+
+    return fenMove;
+}
+
 bool ChessAlgorithm::move(int colFrom, int rankFrom, int colTo, int rankTo)
 {
     // Capture edge case when there is somehow now player selected.
@@ -116,11 +129,24 @@ bool ChessAlgorithm::move(int colFrom, int rankFrom, int colTo, int rankTo)
 
     // After we changed player check if there is a check delivered.
     qDebug() << "Changed player to " << currentPlayer();
-    /*if (check(from))
+
+    // Check if the new move gave a check.
+    if (check())
     {
-        qDebug() << m_currentPlayer << "got checked!";
-        emit checked(QPoint(5, 8));
-    }*/
+        if (currentPlayer() == BlackPlayer)
+        {
+            qDebug() << m_currentPlayer << "got checked!";
+            board()->setBlackChecked(true);
+
+            // TODO: This is the coordinate of the oppenent's king.
+            emit checked(QPoint(5, 8));
+        }
+        else if (currentPlayer() == WhitePlayer)
+        {
+            qDebug() << m_currentPlayer << "got checked!";
+            board()->setWhiteChecked(true);
+        }
+    }
 
     return true;
 }
@@ -177,7 +203,7 @@ bool ChessAlgorithm::move(const QPoint &from, const QPoint &to)
 }
 
 
-void ChessAlgorithm::setEngineMoves(int colFrom, int rankFrom)
+void ChessAlgorithm::setEngineMoves(int colFrom, int rankFrom, QString fen)
 {
     QChar source = board()->data(colFrom, rankFrom);
     qDebug() << source;
@@ -188,7 +214,7 @@ void ChessAlgorithm::setEngineMoves(int colFrom, int rankFrom)
     m_engine->sendCommand("setoption name Hash value 32");
     m_engine->sendCommand("isready");
     m_engine->sendCommand("ucinewgame");
-    m_engine->sendCommand("position fen ");
+    m_engine->sendCommand("position fen " + fen);
     m_engine->sendCommand("go depth 3");
 }
 
@@ -257,12 +283,6 @@ void ChessAlgorithm::setQueenMoves(QChar piece, int colFrom, int rankFrom)
                              toField = board()->data(colTo, rankTo);
                              if (blackPieces.contains(toField))
                              {
-                                 // For any potential move we need to see if it delivers check.
-                                 QPoint outpost(colTo, rankTo);
-                                 if (check(outpost))
-                                 {
-
-                                 }
                                  move = toAlgebraic(piece, colFrom, rankFrom, colTo, rankTo, true);
                                  qDebug() << "[Log] Legal move. Capture of black piece.";
                                  m_moves[move] = false;
@@ -971,7 +991,7 @@ bool ChessAlgorithm::onBoard(int colTo, int rankTo)
     return true;
 }
 
-bool ChessAlgorithm::check(QPoint &from)
+bool ChessAlgorithm::check()
 {
     const QString pieces = "PRNBQK";
 

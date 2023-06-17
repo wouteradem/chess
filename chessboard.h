@@ -22,6 +22,9 @@ class ChessBoard : public QObject
     Q_PROPERTY(CastleType whiteCasteled MEMBER m_whiteCastled READ whiteCastled WRITE setWhiteCastled NOTIFY whiteHasCastled)
     Q_PROPERTY(CastleType blackCasteled MEMBER m_blackCastled READ blackCastled WRITE setBlackCastled NOTIFY blackHasCastled)
 
+    Q_PROPERTY(bool whiteChecked MEMBER m_whiteChecked READ whiteChecked WRITE setWhiteChecked NOTIFY whiteIsChecked)
+    Q_PROPERTY(bool blackChecked MEMBER m_blackChecked READ blackChecked WRITE setBlackChecked NOTIFY blackIsChecked)
+
 public:
     explicit ChessBoard(int ranks=8, int columns=8, QObject *parent = nullptr);
 
@@ -32,12 +35,16 @@ public:
     int ranks() const;
     int columns() const;
     int nrOfMoves() const;
+    bool whiteChecked() const;
+    bool blackChecked() const;
     CastleType whiteCastled() const;
     CastleType blackCastled() const;
 
     void setWhiteCastled(CastleType type);
     void setBlackCastled(CastleType type);
     void setNrOfMoves(int nr);
+    void setWhiteChecked(bool isChecked);
+    void setBlackChecked(bool isChecked);
 
     QChar data(int column, int rank) const;
     QPoint point(QChar piece) const;
@@ -46,7 +53,7 @@ public:
     void movePiece(int fromColumn, int fromRank, int toColumn, int toRank);
 
     void setFen(const QString &fen);
-    QString getFen();
+    QString getFen(const QChar player);
 
 signals:
     void ranksChanged(int);
@@ -56,6 +63,8 @@ signals:
     void blackHasCastled(CastleType);
     void dataChanged(int c, int r);
     void boardReset();
+    void whiteIsChecked();
+    void blackIsChecked();
 
 protected:
     void setRanks(int newRanks);
@@ -72,6 +81,8 @@ private:
     int m_nrOfMoves;
     CastleType m_whiteCastled;
     CastleType m_blackCastled;
+    bool m_whiteChecked;
+    bool m_blackChecked;
 
     QVector<QChar> m_boardData;
 };

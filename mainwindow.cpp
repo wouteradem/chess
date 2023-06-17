@@ -3,6 +3,7 @@
 #include "chessalgorithm.h"
 #include "chessview.h"
 #include "fieldhighlight.h"
+#include "uciengine.h"
 #include <QObject>
 #include <QLayout>
 #include <QPushButton>
@@ -18,9 +19,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_view = new ChessView(this);
 
-    // Capture the event when the board is clicked
-    connect(m_view, &ChessView::clicked, this, &MainWindow::viewClicked);
-
     m_view->setPiece('P', QIcon(":/pieces/Chess_plt45.svg"));
     m_view->setPiece('K', QIcon(":/pieces/Chess_klt45.svg"));
     m_view->setPiece('Q', QIcon(":/pieces/Chess_qlt45.svg"));
@@ -34,6 +32,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_view->setPiece('n', QIcon(":/pieces/Chess_ndt45.svg"));
     m_view->setPiece('b', QIcon(":/pieces/Chess_bdt45.svg"));
 
+    // Capture the event when the board is clicked
+    connect(m_view, &ChessView::clicked, this, &MainWindow::viewClicked);
+
     // Create new Chess game.
     m_algorithm = new ChessAlgorithm(this);
     m_algorithm->newGame();
@@ -43,6 +44,17 @@ MainWindow::MainWindow(QWidget *parent)
     m_view->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_view->setFieldSize(QSize(100, 100));
     m_view->show();
+
+    m_lblCheck = new QLabel(this);
+    m_lblCheck->move(880, 60);
+    m_lblCheck->resize(250, 60);
+
+    // Set font for label.
+    QFont fontCheck = m_lblCheck->font();
+    fontCheck.setPointSize(30);
+    fontCheck.setBold(true);
+    m_lblCheck->setFont(fontCheck);
+    m_lblCheck->show();
 
     // Label to display current player.
     m_lblPlayer = new QLabel(this);
@@ -89,11 +101,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_lstCompMoves->resize(200, 180);
     m_lstCompMoves->show();
 
-    // This needs to connect to the UCI engine.
-    //m_lstBestMoves->connect(m_lstBestMoves, SIGNAL(addItem()), this, SLOT(viewClicked()));
-
-    connect(m_algorithm, &ChessAlgorithm::checked, this, &MainWindow::highlightCheck);
-
     // Connect SIGNAL when there is checkmate or stale mate.
     connect(m_algorithm, &ChessAlgorithm::gameOver, this, &MainWindow::gameOver);
 }
@@ -108,10 +115,13 @@ void MainWindow::updateList()
 {
     QString move = m_algorithm->currentMove();
     int nr = m_algorithm->board()->nrOfMoves();
+
+    // Add a new row with white's move.
     if (nr > 0 && nr % 2 == 1)
     {
         m_lstMoves->addItem(QString::number((nr + 1)/2) + ".  " + move + "\t");
     }
+    // Add black's move.
     if (nr > 0 && nr % 2 == 0)
     {
         QListWidgetItem *item = m_lstMoves->item((nr - 1)/2);
@@ -119,9 +129,17 @@ void MainWindow::updateList()
     }
 }
 
+void MainWindow::updateBestMoveList(QString move)
+{
+    qInfo() << Q_FUNC_INFO;
+
+    m_lstCompMoves->addItem(move);
+}
+
 void MainWindow::playerChanged()
 {
     qInfo() << Q_FUNC_INFO;
+
     ChessAlgorithm::Player player = m_algorithm->currentPlayer();
     if (player == ChessAlgorithm::BlackPlayer)
     {
@@ -139,9 +157,13 @@ void MainWindow::playerChanged()
 
 void MainWindow::viewClicked(const QPoint &field)
 {
+
+    qInfo() << Q_FUNC_INFO;
+
     // Did the user click somewhere?
     if (m_clickPoint.isNull())
     {
+
         // Only allow to select chess pieces.
         if (m_view->board()->data(field.x(), field.y()) != ' ')
         {
@@ -151,9 +173,20 @@ void MainWindow::viewClicked(const QPoint &field)
             m_selectedField = new FieldHighlight(field.x(), field.y(), QColor(246, 246, 132), FieldHighlight::Rectangle);
             m_view->addHighlight(m_selectedField);
 
+            if (m_view->board()->blackChecked())
+            {
+                m_possibleField = new FieldHighlight(5, 8, QColor(244,198,198), FieldHighlight::Rectangle);
+                m_view->addHighlight(m_possibleField);
+            }
+            connect(m_algorithm, &ChessAlgorithm::checked, this, &MainWindow::highlightCheck);
+
             // Highlight possible moves for selected piece.
             m_algorithm->setMoves(field.x(), field.y());
-            m_algorithm->setEngineMoves(field.x(), field.y());
+            m_algorithm->setEngineMoves(field.x(), field.y(), m_algorithm->getFENBoard());
+
+            // This needs to connect to the UCI engine.
+            // TODO: WORDT NIET OPGEPAKT. CONNECT MOET MISSCHIEN HIER NIET!
+            connect(m_algorithm->engine(), &UciEngine::engineMove, this, &MainWindow::updateBestMoveList);
 
             // Get the possible moves from the algorithm.
             QHash<QString, bool> m_moves = m_algorithm->getMoves();
@@ -172,6 +205,7 @@ void MainWindow::viewClicked(const QPoint &field)
                 }
                 m_view->addHighlight(m_possibleField);
             }
+
         }
     }
     else
@@ -199,8 +233,22 @@ void MainWindow::highlightCheck(const QPoint &p)
 {
     qInfo() << Q_FUNC_INFO;
 
-    m_possibleField = new FieldHighlight(p.x(), p.y(), QColor(118,150,87), FieldHighlight::Rectangle);
-    m_view->addHighlight(m_possibleField);
+    m_lblCheck->setText("Schaak!");
+
+    QString move = m_algorithm->currentMove();
+    move = move + '+';
+    int nr = m_algorithm->board()->nrOfMoves();
+    qDebug() << "Move :" << nr;
+
+    // Here we alter the move to add the check FEN sign in UI.
+    if (nr > 0 && nr % 2 == 1)
+    {
+        int itemIndex = (nr + 1)/2;
+        QListWidgetItem *item = m_lstMoves->item(itemIndex - 1);
+        item->setText(QString::number(itemIndex) + ".  " + move + "\t");
+    }
+
+    emit m_view->clicked(p);
 }
 
 void MainWindow::gameOver(ChessAlgorithm::Result result)

@@ -12,6 +12,7 @@ class ChessAlgorithm : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(Result result READ result CONSTANT)
+    Q_PROPERTY(UciEngine engine READ engine CONSTANT)
     Q_PROPERTY(Player currentPlayer READ currentPlayer NOTIFY currentPlayerChanged)
     Q_PROPERTY(QString currentMove READ currentMove WRITE setCurrentMove NOTIFY currentMoveChanged)
 
@@ -30,14 +31,15 @@ public:
     ChessBoard* board() const;
 
     inline Result result() const { return m_result; }
+    inline UciEngine* engine() const { return m_engine; }
     inline Player currentPlayer() const { return m_currentPlayer; }
     inline QString currentMove() const { return m_currentMove; }
 
     // Sets the possible player moves, and engine moves.
     void setMoves(int colFrom, int rankFrom);
-    void setEngineMoves(int colFrom, int rankFrom);
-
-    bool check(QPoint &from);
+    void setEngineMoves(int colFrom, int rankFrom, QString fen);
+    QString getFENBoard();
+    bool check();
 
     QHash<QString, bool> getMoves() const {return m_moves; }
 

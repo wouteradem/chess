@@ -28,6 +28,17 @@ int ChessBoard::nrOfMoves() const
     return m_nrOfMoves;
 }
 
+bool ChessBoard::whiteChecked() const
+{
+    return m_whiteChecked;
+}
+
+bool ChessBoard::blackChecked() const
+{
+    return m_blackChecked;
+}
+
+
 ChessBoard::CastleType ChessBoard::whiteCastled() const
 {
     return m_whiteCastled;
@@ -36,6 +47,18 @@ ChessBoard::CastleType ChessBoard::whiteCastled() const
 ChessBoard::CastleType ChessBoard::blackCastled() const
 {
     return m_blackCastled;
+}
+
+void ChessBoard::setWhiteChecked(bool isChecked)
+{
+    m_whiteChecked = isChecked;
+}
+
+void ChessBoard::setBlackChecked(bool isChecked)
+{
+    qInfo() << Q_FUNC_INFO;
+
+    m_blackChecked = isChecked;
 }
 
 void ChessBoard::setWhiteCastled(ChessBoard::CastleType type)
@@ -111,6 +134,7 @@ void ChessBoard::setNrOfMoves(int nr)
 void ChessBoard::initBoard()
 {
     m_boardData.fill(' ', ranks() * columns());
+
     emit boardReset();
 }
 
@@ -271,7 +295,7 @@ void ChessBoard::setFen(const QString &fen)
  * Helper function that gets a FEN code from the current pieces on the board.
  * Written based on documentation in https://www.chess.com/terms/fen-chess.
  */
-QString ChessBoard::getFen()
+QString ChessBoard::getFen(QChar player)
 {
     QString fen = "";
     int size = m_boardData.size();
@@ -313,12 +337,13 @@ QString ChessBoard::getFen()
     }
     // Remove last / from fen string.
     fen.chop(1);
-
+    fen += " ";
     // Add current player info.
-
+    fen += player;
+    fen += " ";
+    // For now keep it simple...
     // Add castling info.
-
-    // TODO: Add function canCastle.
+    fen += "KQkq - 0 1";
 
     /*
      * if Player::whitePlayer:

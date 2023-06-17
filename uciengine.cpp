@@ -47,5 +47,7 @@ void UciEngine::parseLine(const QString& line)
         qInfo() << line;
         QStringList bestMove = line.split(" ");
         qInfo() << bestMove[1];
+
+        emit engineMove(QString(bestMove[1]));
     }
 }

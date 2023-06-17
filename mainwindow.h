@@ -27,11 +27,13 @@ public slots:
 private slots:
     void gameOver(ChessAlgorithm::Result);
     void updateList();
+    void updateBestMoveList(QString move);
 
 private:
     Ui::MainWindow *ui;
     ChessView *m_view;
     QLabel *m_lblPlayer;
+    QLabel *m_lblCheck;
     QListWidget *m_lstMoves;
     QListWidget *m_lstCompMoves;
 
