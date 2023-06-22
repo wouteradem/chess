@@ -17,6 +17,7 @@ class ChessBoard : public QObject
 
     // Number of moves property.
     Q_PROPERTY(int nrOfMoves MEMBER m_nrOfMoves READ nrOfMoves WRITE setNrOfMoves NOTIFY nrOfMovesChanged)
+    //Q_PROPERTY(int nrOfEngMoves MEMBER m_nrOfEngMoves READ nrOfEngMoves WRITE setNrOfEngMoves NOTIFY nrOfEngMovesChanged)
 
     // Castle properties.
     Q_PROPERTY(CastleType whiteCasteled MEMBER m_whiteCastled READ whiteCastled WRITE setWhiteCastled NOTIFY whiteHasCastled)
@@ -28,21 +29,24 @@ class ChessBoard : public QObject
 public:
     explicit ChessBoard(int ranks=8, int columns=8, QObject *parent = nullptr);
 
-    enum CastleType {Short, Long};
+    enum CastleType {Short, Long, None};
     Q_ENUM(CastleType)
 
     // Getter methods.
     int ranks() const;
     int columns() const;
     int nrOfMoves() const;
+    int nrOfEngMoves() const;
     bool whiteChecked() const;
     bool blackChecked() const;
     CastleType whiteCastled() const;
     CastleType blackCastled() const;
 
+    // Setter methods.
     void setWhiteCastled(CastleType type);
     void setBlackCastled(CastleType type);
     void setNrOfMoves(int nr);
+    void setNrOfEngMoves(int nr);
     void setWhiteChecked(bool isChecked);
     void setBlackChecked(bool isChecked);
 
@@ -54,11 +58,13 @@ public:
 
     void setFen(const QString &fen);
     QString getFen(const QChar player);
+    bool setDataInternal(int column, int rank, QChar value);
 
 signals:
     void ranksChanged(int);
     void columnsChanged(int);
-    void nrOfMovesChanged(QString);
+    void nrOfMovesChanged();
+    void nrOfEngMovesChanged();
     void whiteHasCastled(CastleType);
     void blackHasCastled(CastleType);
     void dataChanged(int c, int r);
@@ -73,12 +79,11 @@ protected:
     // Initialises an empty chess board.
     void initBoard();
 
-    bool setDataInternal(int column, int rank, QChar value);
-
 private:
     int m_ranks;
     int m_columns;
     int m_nrOfMoves;
+    int m_nrOfEngMoves;
     CastleType m_whiteCastled;
     CastleType m_blackCastled;
     bool m_whiteChecked;

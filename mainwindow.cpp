@@ -3,13 +3,14 @@
 #include "chessalgorithm.h"
 #include "chessview.h"
 #include "fieldhighlight.h"
-#include "uciengine.h"
 #include <QObject>
 #include <QLayout>
 #include <QPushButton>
 #include <QListWidget>
 #include <QLabel>
 #include <QMessageBox>
+#include <QTimer>
+#include <QElapsedTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -31,9 +32,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_view->setPiece('r', QIcon(":/pieces/Chess_rdt45.svg"));
     m_view->setPiece('n', QIcon(":/pieces/Chess_ndt45.svg"));
     m_view->setPiece('b', QIcon(":/pieces/Chess_bdt45.svg"));
-
-    // Capture the event when the board is clicked
-    connect(m_view, &ChessView::clicked, this, &MainWindow::viewClicked);
 
     // Create new Chess game.
     m_algorithm = new ChessAlgorithm(this);
@@ -101,6 +99,21 @@ MainWindow::MainWindow(QWidget *parent)
     m_lstCompMoves->resize(200, 180);
     m_lstCompMoves->show();
 
+    // Set first engine move.
+    m_algorithm->board()->setNrOfEngMoves(1);
+
+    // Capture the event when the board is clicked
+    connect(m_view, &ChessView::clicked, this, &MainWindow::viewClicked);
+
+    // Uncheck listener.
+    connect(m_algorithm, &ChessAlgorithm::unChecked, this, &MainWindow::unCheck);
+
+    // This needs to connect to the UCI engine.
+    connect(m_algorithm->engine(), &UciEngine::engineMove, this, &MainWindow::updateBestMoveList);
+
+    // Listen to castling.
+    connect(m_algorithm->board(), &ChessBoard::whiteHasCastled, m_algorithm, &ChessAlgorithm::whiteCastle);
+
     // Connect SIGNAL when there is checkmate or stale mate.
     connect(m_algorithm, &ChessAlgorithm::gameOver, this, &MainWindow::gameOver);
 }
@@ -133,7 +146,19 @@ void MainWindow::updateBestMoveList(QString move)
 {
     qInfo() << Q_FUNC_INFO;
 
-    m_lstCompMoves->addItem(move);
+    int nr = m_algorithm->board()->nrOfEngMoves();
+
+    // Add a new row with white's move.
+    if (nr > 0 && nr % 2 == 1)
+    {
+        m_lstCompMoves->addItem(QString::number((nr + 1)/2) + ".  " + move + "\t");
+    }
+    // Add black's move.
+    if (nr > 0 && nr % 2 == 0)
+    {
+        QListWidgetItem *item = m_lstCompMoves->item((nr - 1)/2);
+        item->setText(item->text() + move);
+    }
 }
 
 void MainWindow::playerChanged()
@@ -160,6 +185,7 @@ void MainWindow::viewClicked(const QPoint &field)
 
     qInfo() << Q_FUNC_INFO;
 
+
     // Did the user click somewhere?
     if (m_clickPoint.isNull())
     {
@@ -173,20 +199,16 @@ void MainWindow::viewClicked(const QPoint &field)
             m_selectedField = new FieldHighlight(field.x(), field.y(), QColor(246, 246, 132), FieldHighlight::Rectangle);
             m_view->addHighlight(m_selectedField);
 
-            if (m_view->board()->blackChecked())
+            /*if (m_view->board()->blackChecked())
             {
                 m_possibleField = new FieldHighlight(5, 8, QColor(244,198,198), FieldHighlight::Rectangle);
                 m_view->addHighlight(m_possibleField);
-            }
+            }*/
             connect(m_algorithm, &ChessAlgorithm::checked, this, &MainWindow::highlightCheck);
 
             // Highlight possible moves for selected piece.
             m_algorithm->setMoves(field.x(), field.y());
-            m_algorithm->setEngineMoves(field.x(), field.y(), m_algorithm->getFENBoard());
-
-            // This needs to connect to the UCI engine.
-            // TODO: WORDT NIET OPGEPAKT. CONNECT MOET MISSCHIEN HIER NIET!
-            connect(m_algorithm->engine(), &UciEngine::engineMove, this, &MainWindow::updateBestMoveList);
+            m_algorithm->setEngineMoves( m_algorithm->getFENBoard());
 
             // Get the possible moves from the algorithm.
             QHash<QString, bool> m_moves = m_algorithm->getMoves();
@@ -249,6 +271,13 @@ void MainWindow::highlightCheck(const QPoint &p)
     }
 
     emit m_view->clicked(p);
+}
+
+void MainWindow::unCheck()
+{
+    qInfo() << Q_FUNC_INFO;;
+
+    m_lblCheck->setText("");
 }
 
 void MainWindow::gameOver(ChessAlgorithm::Result result)

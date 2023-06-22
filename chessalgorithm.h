@@ -37,22 +37,24 @@ public:
 
     // Sets the possible player moves, and engine moves.
     void setMoves(int colFrom, int rankFrom);
-    void setEngineMoves(int colFrom, int rankFrom, QString fen);
+    void setEngineMoves(QString fen);
     QString getFENBoard();
-    bool check();
+    bool check(QString player);
 
-    QHash<QString, bool> getMoves() const {return m_moves; }
+    QHash<QString, bool> getMoves() const {return m_moves;}
 
 public slots:
     virtual void newGame();
     virtual bool move(int colFrom, int rankFrom, int colTo, int rankTo);
     bool move(const QPoint &from, const QPoint &to);
     QPoint toCoordinates(QString move);
+    void whiteCastle(ChessBoard::CastleType);
 
 signals:
     void boardChanged(ChessBoard*);
     void gameOver(ChessAlgorithm::Result);
     void checked(QPoint);
+    void unChecked();
     void currentPlayerChanged(Player);
     void currentMoveChanged(QString);
 
@@ -71,6 +73,7 @@ private:
     QHash<QString, bool> m_engineMoves;
     UciEngine *m_engine;
     bool m_check;
+    bool m_whiteCastling;
 
     // GamePlay functions.
     void setPawnMoves(QChar piece, int colFrom, int rankFrom);

@@ -23,6 +23,7 @@ public slots:
     void viewClicked(const QPoint &field);
     void playerChanged();
     void highlightCheck(const QPoint &field);
+    void unCheck();
 
 private slots:
     void gameOver(ChessAlgorithm::Result);
@@ -31,13 +32,13 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    ChessView *m_view;
-    QLabel *m_lblPlayer;
-    QLabel *m_lblCheck;
-    QListWidget *m_lstMoves;
-    QListWidget *m_lstCompMoves;
+    QPointer<ChessView> m_view;
+    QPointer<QLabel> m_lblPlayer;
+    QPointer<QLabel> m_lblCheck;
+    QPointer<QListWidget> m_lstMoves;
+    QPointer<QListWidget> m_lstCompMoves;
 
-    ChessAlgorithm *m_algorithm;
+    QPointer<ChessAlgorithm> m_algorithm;
     QPoint m_clickPoint;
     Highlight *m_selectedField;
     Highlight *m_possibleField;

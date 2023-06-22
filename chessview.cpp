@@ -15,13 +15,13 @@ void ChessView::setBoard(ChessBoard *board)
         return;
     }
 
-    /*if (m_board)
+    if (m_board)
     {
         // If m_board already set, then disconnect it.
         // This could be an "old" chess board.
         m_board->disconnect(this);
         qDebug() << "Disconnected board.";
-    }*/
+    }
     m_board->disconnect(this);
 
     // Assign the board.
@@ -56,7 +56,7 @@ void ChessView::setFieldSize(const QSize &newFieldSize)
         return;
 
     m_fieldSize = newFieldSize;
-    emit fieldSizeChanged();
+    //emit fieldSizeChanged();
     updateGeometry();
 }
 

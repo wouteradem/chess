@@ -8,6 +8,9 @@ ChessBoard::ChessBoard(int ranks, int columns, QObject *parent)
     m_ranks = ranks;
     m_columns = columns;
     m_nrOfMoves = 0;
+    m_nrOfEngMoves = 0;
+    m_whiteCastled = CastleType::None;
+    m_blackCastled = CastleType::None;
 
     // Once ranks and columns are set, make an empty board.
     initBoard();
@@ -26,6 +29,11 @@ int ChessBoard::columns() const
 int ChessBoard::nrOfMoves() const
 {
     return m_nrOfMoves;
+}
+
+int ChessBoard::nrOfEngMoves() const
+{
+    return m_nrOfEngMoves;
 }
 
 bool ChessBoard::whiteChecked() const
@@ -80,12 +88,10 @@ void ChessBoard::setBlackCastled(ChessBoard::CastleType type)
     if (type == CastleType::Long)
     {
         m_blackCastled = CastleType::Long;
-        movePiece(1, 8, 4, 8);
     }
     else if (type == CastleType::Short)
     {
         m_blackCastled = CastleType::Short;
-        movePiece(8, 8, 6, 8);
     }
 
     emit blackHasCastled(type);
@@ -124,7 +130,15 @@ void ChessBoard::setNrOfMoves(int nr)
     m_nrOfMoves += nr;
 
     // Emit signal that number of moves has changed.
-    emit nrOfMovesChanged("e4");
+    emit nrOfMovesChanged();
+}
+
+void ChessBoard::setNrOfEngMoves(int nr)
+{
+    m_nrOfEngMoves += nr;
+
+    // Emit signal that number of moves has changed.
+    emit nrOfEngMovesChanged();
 }
 
 /*
@@ -213,6 +227,7 @@ void ChessBoard::movePiece(int fromColumn, int fromRank, int toColumn, int toRan
     setData(toColumn, toRank, data(fromColumn, fromRank));
     setData(fromColumn, fromRank, ' ');
     setNrOfMoves(1);
+    setNrOfEngMoves(1);
 }
 
 /*
