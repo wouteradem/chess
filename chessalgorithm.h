@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QPoint>
+#include <QPointer>
 #include <QHash>
 #include "chessboard.h"
 #include "uciengine.h"
@@ -16,7 +17,7 @@ class ChessAlgorithm : public QObject
     Q_PROPERTY(Player currentPlayer READ currentPlayer NOTIFY currentPlayerChanged)
     Q_PROPERTY(QString currentMove READ currentMove WRITE setCurrentMove NOTIFY currentMoveChanged)
 
-    ChessBoard *m_board;
+    QPointer<ChessBoard> m_board;
 
 public:
     enum Result {NoResult, WhiteWin, BlackWin, Draw, StaleMate};
@@ -26,7 +27,6 @@ public:
     Q_ENUM(Player)
 
     ChessAlgorithm(QObject *parent = nullptr);
-    ~ChessAlgorithm();
 
     // Getter method to the board.
     ChessBoard* board() const;
@@ -72,7 +72,7 @@ private:
     QString m_currentMove;
     QHash<QString, bool> m_moves;
     QHash<QString, bool> m_engineMoves;
-    UciEngine *m_engine;
+    QPointer<UciEngine> m_engine;
     bool m_check;
     bool m_whiteCastling;
 

@@ -15,6 +15,7 @@ class UciEngine : public QObject
 
 public:
     explicit UciEngine(QObject *parent = nullptr);
+    ~UciEngine();
 
 public slots:
     void startEngine(const QString &enginepath);

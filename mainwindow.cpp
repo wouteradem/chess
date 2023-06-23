@@ -122,6 +122,7 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete m_algorithm;
 }
 
 void MainWindow::updateList()

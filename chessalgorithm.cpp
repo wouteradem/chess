@@ -29,7 +29,11 @@ void ChessAlgorithm::setBoard(ChessBoard *board)
     if (board == m_board) return;
 
     // If private member board already exists remove it and reset it.
-    if (m_board) delete m_board;
+    if (m_board)
+    {
+        delete m_board;
+        delete m_engine;
+    }
     m_board = board;
 
     // Finally, emit that the new board is set.

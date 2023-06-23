@@ -28,7 +28,6 @@ class ChessBoard : public QObject
 
 public:
     explicit ChessBoard(int ranks=8, int columns=8, QObject *parent = nullptr);
-    ~ChessBoard();
 
     enum CastleType {Short, Long, None};
     Q_ENUM(CastleType)

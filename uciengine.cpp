@@ -11,7 +11,11 @@ UciEngine::UciEngine(QObject *parent)
     connect(m_uciEngine, SIGNAL(readyRead()), SLOT(readFromEngine()));
 }
 
-// TODO: Add stopEngine that calls QProcess.close() method.
+UciEngine::~UciEngine()
+{
+    delete m_uciEngine;
+}
+
 void UciEngine::startEngine(const QString &enginepath)
 {
     qInfo() << Q_FUNC_INFO;
