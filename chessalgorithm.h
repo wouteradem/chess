@@ -26,6 +26,7 @@ public:
     Q_ENUM(Player)
 
     ChessAlgorithm(QObject *parent = nullptr);
+    ~ChessAlgorithm();
 
     // Getter method to the board.
     ChessBoard* board() const;
