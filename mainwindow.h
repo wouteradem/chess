@@ -29,6 +29,7 @@ private slots:
     void gameOver(ChessAlgorithm::Result);
     void updateList();
     void updateBestMoveList(QString move);
+    void checkYourself();
 
 private:
     Ui::MainWindow *ui;

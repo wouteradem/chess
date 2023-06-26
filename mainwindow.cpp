@@ -107,12 +107,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Uncheck listener.
     connect(m_algorithm, &ChessAlgorithm::unChecked, this, &MainWindow::unCheck);
+    connect(m_algorithm, &ChessAlgorithm::checked, this, &MainWindow::highlightCheck);
+    connect(m_algorithm, &ChessAlgorithm::checkYourself, this, &MainWindow::checkYourself);
+
 
     // This needs to connect to the UCI engine.
     connect(m_algorithm->engine(), &UciEngine::engineMove, this, &MainWindow::updateBestMoveList);
-
-    // Listen to castling.
-    connect(m_algorithm->board(), &ChessBoard::whiteHasCastled, m_algorithm, &ChessAlgorithm::whiteCastle);
 
     // Connect SIGNAL when there is checkmate or stale mate.
     connect(m_algorithm, &ChessAlgorithm::gameOver, this, &MainWindow::gameOver);
@@ -187,25 +187,36 @@ void MainWindow::viewClicked(const QPoint &field)
     qInfo() << Q_FUNC_INFO;
 
 
+    QString whitePieces = "PRNBQK";
+    QString blackPieces = "prnbqk";
+
     // Did the user click somewhere?
     if (m_clickPoint.isNull())
     {
+        bool legalMove = true;
+        QChar source = m_view->board()->data(field.x(), field.y());
+        if (blackPieces.contains(source) && m_algorithm->currentPlayer() == ChessAlgorithm::WhitePlayer)
+        {
+            legalMove = false;
+            qDebug() << "Wrong player!";
+            QMessageBox::information(this, "Wrong player!", QStringLiteral("%1 player to move!").arg("White"));
+
+        }
+        else if (whitePieces.contains(source) && m_algorithm->currentPlayer() == ChessAlgorithm::BlackPlayer)
+        {
+            legalMove = false;
+            qDebug() << "Wrong player!";
+             QMessageBox::information(this, "Wrong player!", QStringLiteral("%1 player to move!").arg("Black"));
+        }
 
         // Only allow to select chess pieces.
-        if (m_view->board()->data(field.x(), field.y()) != ' ')
+        if (legalMove)
         {
             m_clickPoint = field;
 
             // Highlight the selected piece.
             m_selectedField = new FieldHighlight(field.x(), field.y(), QColor(246, 246, 132), FieldHighlight::Rectangle);
             m_view->addHighlight(m_selectedField);
-
-            /*if (m_view->board()->blackChecked())
-            {
-                m_possibleField = new FieldHighlight(5, 8, QColor(244,198,198), FieldHighlight::Rectangle);
-                m_view->addHighlight(m_possibleField);
-            }*/
-            connect(m_algorithm, &ChessAlgorithm::checked, this, &MainWindow::highlightCheck);
 
             // Highlight possible moves for selected piece.
             m_algorithm->setMoves(field.x(), field.y());
@@ -270,6 +281,13 @@ void MainWindow::highlightCheck(const QPoint &p)
         QListWidgetItem *item = m_lstMoves->item(itemIndex - 1);
         item->setText(QString::number(itemIndex) + ".  " + move + "\t");
     }
+    // Add black's move.
+    if (nr > 0 && nr % 2 == 0)
+    {
+        QListWidgetItem *item = m_lstMoves->item((nr - 1)/2);
+        QString text = item->text().mid(0, item->text().indexOf("\t"));
+        item->setText(text + "\t" + move);
+    }
 
     emit m_view->clicked(p);
 }
@@ -290,6 +308,12 @@ void MainWindow::gameOver(ChessAlgorithm::Result result)
     default:
         text = "It's a draw";
     }
+    m_lblCheck->setText("SchaakMat!");
+    QMessageBox::information(this, "Game over!", QStringLiteral("Checkmate! %1").arg(text));
+    QApplication::quit();
+}
 
-    QMessageBox::information(this, "Game over", QStringLiteral("The game has ended. %1").arg(text));
+void MainWindow::checkYourself()
+{
+    QMessageBox::information(this, "Illegal move!", QStringLiteral("Illegal move! You are checking yourself"));
 }

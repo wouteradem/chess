@@ -9,9 +9,29 @@ ChessAlgorithm::ChessAlgorithm(QObject *parent)
 {
     m_board = nullptr;
     m_engine = new UciEngine();
+
     m_currentPlayer = NoPlayer;
     m_result = NoResult;
-    m_whiteCastling = false;
+
+    // En-passent.
+    m_enpassent_black = false;
+    m_enpassent_white = false;
+
+    // Castling.
+    m_whitecastled = false;
+    m_blackcastled = false;
+    m_shortcastle_white = false;
+    m_longcastle_white = false;
+    m_shortcastle_black = false;
+    m_longcastle_black = false;
+    m_whiteCannotCastle = false;
+    m_blackCannotCastle = false;
+
+    // Castling condition.
+    m_whiteRookMoved = false;
+    m_blackRookMoved = false;
+    m_whiteKingMoved = false;
+    m_blackKingMoves = false;
 
     // Make sure we start with empty moves.
     m_moves.clear();
@@ -91,7 +111,6 @@ void ChessAlgorithm::setCurrentMove(QString move)
     m_currentMove = move;
 }
 
-
 QString ChessAlgorithm::getFENBoard()
 {
     // Get Engine move.
@@ -127,62 +146,58 @@ bool ChessAlgorithm::move(int colFrom, int rankFrom, int colTo, int rankTo)
         return false;
     }
 
+    if (m_moves.count() == 0)
+    {
+        qDebug() << "Stalemate! Draw!";
+    }
+
     // CAUTION: Here we are doing something non-intuitive!
     // We need to do the provisional move here.
     // Whitout emitting something so we don't update the UI.
+    QChar pieceOnToSource = board()->data(colTo, colFrom);
     board()->setDataInternal(colTo, rankTo, board()->data(colFrom, rankFrom));
     board()->setDataInternal(colFrom, rankFrom, ' ');
 
-    // Now, check if the move doesn't check player.
-    // Therefore, change the player and store in temp variable to avoid emits.
-    QString cPlayer = "black";
-    if (currentPlayer() == BlackPlayer)
-        cPlayer = "white";
-
     // If current player is white(black) and wants to make a move
-    // check if black(white) doesn't give a check.
-    if (check(cPlayer))
+    // check if black(white) doesn't give a check. So change current player.
+    bool switchplayer = true;
+    if (check(switchplayer))
     {
-        qDebug() << "You are checking yourself! Illegal move.";
-
         // Revert the move.
         board()->setDataInternal(colFrom, rankFrom, board()->data(colTo, rankTo));
-        board()->setDataInternal(colTo, rankTo, ' ');
+        board()->setDataInternal(colTo, rankTo, pieceOnToSource);
+
+        emit checkYourself();
 
         return false;
     }
 
     // Revert the move.
     board()->setDataInternal(colFrom, rankFrom, board()->data(colTo, rankTo));
-    board()->setDataInternal(colTo, rankTo, ' ');
+    board()->setDataInternal(colTo, rankTo, pieceOnToSource);
 
-    // Now do the official move.
+    // Now do the REAL move.
     board()->movePiece(colFrom, rankFrom, colTo, rankTo);
 
-   /*
-    // Get the available moves and check if the move is in this set.
-    // If the number of available moves is 0, then we have a checkmate!
-    if (nrOfUncheckMoves == 0)
-    {
-        emit gameOver(Result::BlackWin);
-    }
-    else
-    {
-        board()->movePiece(colFrom, rankFrom, colTo, rankTo);
-    }
-    */
-
-    cPlayer = "white";
-    if (currentPlayer() == BlackPlayer)
-        cPlayer = "black";
-
     // Check if the new move gave a check.
-    if (check(cPlayer))
+    switchplayer = false;
+    if (check(switchplayer))
     {
+        // Check if we aren't checkmated.
+        bool checkMate = this->checkMate();
+        if (checkMate && currentPlayer() == ChessAlgorithm::WhitePlayer)
+        {
+            emit gameOver(ChessAlgorithm::WhiteWin);
+        }
+        else if (checkMate && currentPlayer() == ChessAlgorithm::BlackPlayer)
+        {
+            emit gameOver(ChessAlgorithm::BlackWin);
+        }
+
         if (currentPlayer() == BlackPlayer)
         {
             board()->setWhiteChecked(true);
-            //emit checked(QPoint(5, 8));
+            emit checked(QPoint(5, 8));
         }
         else if (currentPlayer() == WhitePlayer)
         {
@@ -193,6 +208,46 @@ bool ChessAlgorithm::move(int colFrom, int rankFrom, int colTo, int rankTo)
     else
     {
         emit unChecked();
+    }
+
+    // Check for en-passent.
+    if (currentPlayer() == WhitePlayer && m_enpassent_white)
+    {
+        board()->setDataInternal(colTo, rankTo - 1, ' ');
+        m_enpassent_white = false;
+    }
+    else if (currentPlayer() == BlackPlayer && m_enpassent_black)
+    {
+        board()->setDataInternal(colTo, rankTo + 1, ' ');
+        m_enpassent_black = false;
+    }
+
+    // White castle.
+    if (m_shortcastle_white && !m_whiteCannotCastle && colTo == 7 && rankTo == 1)
+    {
+        board()->setDataInternal(8, 1, ' ');
+        board()->setDataInternal(6, 1, 'R');
+        m_whitecastled = true;
+    }
+    if (m_longcastle_white && !m_whiteCannotCastle && colTo == 3 && rankTo == 1)
+    {
+        board()->setDataInternal(1, 1, ' ');
+        board()->setDataInternal(4, 1, 'R');
+        m_whitecastled = true;
+    }
+
+    // Black castle.
+    if (m_shortcastle_black && !m_blackCannotCastle && colTo == 7 && rankTo == 8)
+    {
+        board()->setDataInternal(8, 8, ' ');
+        board()->setDataInternal(6, 8, 'r');
+        m_blackcastled = true;
+    }
+    if (m_longcastle_black && !m_blackCannotCastle && colTo == 3 && rankTo == 8)
+    {
+        board()->setDataInternal(1, 8, ' ');
+        board()->setDataInternal(4, 8, 'r');
+        m_blackcastled = true;
     }
 
     // Finally change the player.
@@ -207,24 +262,80 @@ bool ChessAlgorithm::move(const QPoint &from, const QPoint &to)
     QString index;
     QChar source = board()->data(from.x(), from.y());
 
+    // Validate if we can actually castle.
+    if (source == 'K' && to.x() != 7 && to.y() != 1)
+    {
+        m_whiteCannotCastle = true;
+    }
+    if (source == 'K' && to.x() != 3 && to.y() != 1)
+    {
+        m_whiteCannotCastle = true;
+    }
+    if (source == 'k' && to.x() != 7 && to.y() != 8)
+    {
+        m_blackCannotCastle = true;
+    }
+    if (source == 'k' && to.x() != 3 && to.y() != 8)
+    {
+        m_blackCannotCastle = true;
+    }
+    if (source == 'R' && to.x() != 6)
+    {
+        m_whiteCannotCastle = true;
+    }
+    if (source == 'R' && to.x() != 4)
+    {
+        m_whiteCannotCastle = true;
+    }
+    if (source == 'r' && to.x() != 6)
+    {
+        m_blackCannotCastle = true;
+    }
+    if (source == 'r' && to.x() != 4)
+    {
+        m_blackCannotCastle = true;
+    }
+
     // Check if we are within the board.
     if (!onBoard(to.x(), to.y())) return false;
 
     // Check if there will be a capture.
     QString whitePieces = "PRNBQK";
     QString blackPieces = "prnbqk";
+
     QChar toField = board()->data(to.x(), to.y());
 
     // Check if we can take or not.
-    if (blackPieces.contains(toField) || whitePieces.contains(toField))
+    if (currentPlayer() == WhitePlayer)
     {
-        index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), true);
+        if (blackPieces.contains(toField) || m_enpassent_white)
+        {
+            index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), true);
+        }
+        else if (source == 'K' && from.x() == 5 && to.x() == 7)
+        {
+            index = toAlgebraicCastle(source, from.x(), from.y(), to.x(), to.y(), true);
+        }
+        else
+        {
+            index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), false);
+        }
     }
-    else
+    else if (m_currentPlayer == BlackPlayer)
     {
-        index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), false);
+        if (whitePieces.contains(toField) || m_enpassent_black)
+        {
+            index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), true);
+        }
+        else if (source == 'k' && from.x() == 5 && to.x() == 7)
+        {
+            index = toAlgebraicCastle(source, from.x(), from.y(), to.x(), to.y(), true);
+        }
+        else
+        {
+            index = toAlgebraic(source, from.x(), from.y(), to.x(), to.y(), false);
+        }
     }
-
     // Now we try to do the actual move.
     if (m_moves.contains(index))
     {
@@ -232,11 +343,9 @@ bool ChessAlgorithm::move(const QPoint &from, const QPoint &to)
 
         return move(from.x(), from.y(), to.x(), to.y());
     }
-    qDebug() << "[Error]: Illegal move.";
 
     return false;
 }
-
 
 void ChessAlgorithm::setEngineMoves(QString fen)
 {
@@ -456,89 +565,80 @@ void ChessAlgorithm::setKingMoves(QChar piece, int colFrom, int rankFrom)
          }
     }
 
-    qDebug() << board()->whiteCastled();
-    if (board()->whiteCastled() != ChessBoard::None)
+    for (int cols=1; cols<3; cols++)
     {
-         qDebug() << "White already castles!";
-    }
-    else
-    {
-         qDebug() << "White didn't castle yet!";
+        colTo = colFrom + cols;
+        rankTo = rankFrom;
 
-         // Short castle check.
-         for (int cols=1; cols<3; cols++)
-         {
-             colTo = colFrom + cols;
-             rankTo = rankFrom;
+        if (onBoard(colTo, rankTo))
+        {
+            if (piece == 'K' || piece == 'k')
+            {
+                QChar toField = board()->data(colTo, rankTo);
+                if (toField == ' ')
+                {
+                    if (piece == 'K' && !m_whiteCannotCastle)
+                    {
+                        move = toAlgebraicCastle('K', colFrom, rankFrom, colTo, rankTo, true);
+                    }
+                    else if (piece == 'k' && !m_blackCannotCastle)
+                    {
+                        move = toAlgebraicCastle('k', colFrom, rankFrom, colTo, rankTo, true);
+                    }
 
-             if (onBoard(colTo, rankTo))
-             {
-                 if (piece == 'K' || piece == 'k')
-                 {
-                     QChar toField = board()->data(colTo, rankTo);
-                     if (toField == ' ')
-                     {
-                         colTo = colFrom + 2;
-                         rankTo = rankFrom;
-                         if (piece == 'K')
-                         {
-                             m_whiteCastling = true;
-                             move = toAlgebraic('K', colFrom, rankFrom, colTo, rankTo, false);
-                         }
-                         else if (piece == 'k')
-                         {
-                             m_whiteCastling = true;
-                             move = toAlgebraic('k', colFrom, rankFrom, colTo, rankTo, false);
-                         }
-                         qDebug() << move;
-                         m_moves[move] = false;
-                     }
-                 }
-             }
-         }
-    }
-    // Check for castling.
-
-    // Check first if we can castle before doing this calculation.
-    // Castling is allowed only if we haven't been checked before.
-    // Castling is only allowed if we are not checking ourselves.
-    // Castling is only allowed if the rooks didn't move.
-    // Castling is only allowed if the king didin't move before.
-    // Castling is only allowed if there are no pieces between king and rook.
-    /*for (int cols=-3; cols<0; cols++)
-    {
-         colTo = colFrom + cols;
-         rankTo = rankFrom;
-
-         if (onBoard(colTo, rankTo))
-         {
-             // Field must be empty and NOT contain a white piece.
-             if (piece == 'K' || piece == 'k')
-             {
-                 QChar toField = board()->data(colTo, rankTo);
-                 if (toField == ' ')
-                 {
-                     colTo = colFrom - 1;
-                     rankTo = rankFrom;
-                     if (piece == 'K')
-                     {
-                         board()->setWhiteCastled(ChessBoard::CastleType::Long);
-                         move = toAlgebraic('K', colFrom, rankFrom, colTo, rankTo, false);
-                     }
-                     else if (piece == 'k')
-                     {
-                         board()->setBlackCastled(ChessBoard::CastleType::Long);
-                         move = toAlgebraic('k', colFrom, rankFrom, colTo, rankTo, false);
-                     }
-                     m_moves[move] = false;
-                 }
-             }
-         }
+                    // Check short castle colour.
+                    if (move.contains("0-0"))
+                    {
+                       m_shortcastle_white = true;
+                    }
+                    if (move.contains("0-0"))
+                    {
+                       m_shortcastle_black = true;
+                    }
+                    m_moves[move] = false;
+                }
+            }
+        }
     }
 
-    // Check for short-castling.
+    // Long castle.
+    for (int cols=-2; cols<0; cols++)
+    {
+        colTo = colFrom + cols;
+        rankTo = rankFrom;
+        if (onBoard(colTo, rankTo))
+        {
+            // Field must be empty and NOT contain a white piece.
+            if (piece == 'K' || piece == 'k')
+            {
+                QChar toField = board()->data(colTo, rankTo);
+                if (toField == ' ')
+                {
+                    colTo = colFrom - 2;
+                    rankTo = rankFrom;
+                    if (piece == 'K' && !m_whiteCannotCastle)
+                    {
+                       move = toAlgebraic('K', colFrom, rankFrom, colTo, rankTo, false);
+                    }
+                    else if (piece == 'k' && !m_blackCannotCastle)
+                    {
+                       move = toAlgebraic('k', colFrom, rankFrom, colTo, rankTo, false);
+                    }
 
-    */
+                    // Check long castle colour.
+                    if (move.contains("Kc1"))
+                    {
+                       m_longcastle_white = true;
+                    }
+                    if (move.contains("Kc1"))
+                    {
+                       m_longcastle_black = true;
+                    }
+                    m_moves[move] = false;
+                }
+            }
+        }
+    }
 }
 
 void ChessAlgorithm::setKnightMoves(QChar piece, int colFrom, int rankFrom)
@@ -869,22 +969,31 @@ void ChessAlgorithm::setPawnMoves(QChar piece, int colFrom, int rankFrom)
     {
         if (rankFrom == 2)
         {
-            move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom + 2, false);
+            if (board()->data(colFrom, rankFrom + 2) == ' ')
+            {
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom + 2, false);
+                m_moves[move] = false;
+            }
+        }
+        if (board()->data(colFrom, rankFrom + 1) == ' ')
+        {
+            move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom + 1, false);
             m_moves[move] = false;
         }
-        move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom + 1, false);
-        m_moves[move] = false;
-
         // Add take moves.
+        bool leftOnBoard = this->onBoard(colFrom - 1, rankFrom + 1);
         QChar leftTake = board()->data(colFrom - 1, rankFrom + 1);
+
+        bool rightOnBoard = this->onBoard(colFrom + 1, rankFrom + 1);
         QChar rightTake = board()->data(colFrom + 1, rankFrom + 1);
+
         QString whitePieces = "PRNBQK";
-        if (leftTake != ' ' && !whitePieces.contains(leftTake))
+        if (leftOnBoard && leftTake != ' ' && !whitePieces.contains(leftTake))
         {
             move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);
             m_moves[move] = false;
         }
-        else if (rightTake != ' ' && !whitePieces.contains(rightTake))
+        else if (rightOnBoard && rightTake != ' ' && !whitePieces.contains(rightTake))
         {
             move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom + 1, true);
             m_moves[move] = false;
@@ -896,30 +1005,32 @@ void ChessAlgorithm::setPawnMoves(QChar piece, int colFrom, int rankFrom)
             rightTake = board()->data(colFrom + 1, rankFrom);
             if (leftTake != ' ' && !whitePieces.contains(leftTake))
             {
-                move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);
-                m_moves[move] = false;
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);  
             }
             else if (rightTake != ' ' && !whitePieces.contains(rightTake))
             {
                 move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom + 1, true);
-                m_moves[move] = false;
             }
-            // TODO: We need to remove the black piece.
-            // This is a forced move, so handle in CHessBoard class.
+            m_moves[move] = false;
+            m_enpassent_white = true;
         }
     }
     else if (piece == 'p')
     {
-        move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom - 1, false);
-        m_moves[move] = false;
+        if (board()->data(colFrom, rankFrom - 1) == ' ') {
+            move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom - 1, false);
+            m_moves[move] = false;
+        }
         if (rankFrom == 7)
         {
-            QString move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom - 2, false);
-            m_moves[move] = false;
+            if (board()->data(colFrom, rankFrom - 2) == ' ')
+            {
+                QString move = toAlgebraic(piece, colFrom, rankFrom, colFrom, rankFrom - 2, false);
+                m_moves[move] = false;
+            }
         }
 
         // Add take moves.
-        // TODO: Add en-passent capture.
         QChar leftTake = board()->data(colFrom + 1, rankFrom - 1);
         QChar rightTake = board()->data(colFrom - 1, rankFrom - 1);
         QString blackPieces = "prnbqk";
@@ -931,6 +1042,23 @@ void ChessAlgorithm::setPawnMoves(QChar piece, int colFrom, int rankFrom)
         else if (rightTake != ' ' && !blackPieces.contains(rightTake))
         {
             QString move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom - 1, true);
+            m_moves[move] = false;
+        }
+
+        // En passant.
+        if (rankFrom == 4)
+        {
+            leftTake = board()->data(colFrom - 1, rankFrom);
+            rightTake = board()->data(colFrom + 1, rankFrom);
+            if (leftTake != ' ' && !blackPieces.contains(leftTake))
+            {
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom - 1, true);
+            }
+            else if (rightTake != ' ' && !blackPieces.contains(rightTake))
+            {
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom - 1, true);
+            }
+            m_enpassent_black = true;
             m_moves[move] = false;
         }
     }
@@ -976,20 +1104,28 @@ QString ChessAlgorithm::toAlgebraic(QChar piece, int colFrom, int rankFrom, int 
     }
     else if (piece == 'K' || piece == 'k')
     {
-        /*if (board()->whiteCastled() == ChessBoard::Long)
+        algNot = "Kx";
+        algNot = canTake ? algNot + colToChar + QString::number(rankTo) : 'K' + colToChar + QString::number(rankTo);
+    }
+
+    qDebug() << algNot;
+
+    return algNot;
+}
+
+
+QString ChessAlgorithm::toAlgebraicCastle(QChar piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canCastleShort)
+{
+    QString algNot = "";
+
+        if (!canCastleShort)
         {
             algNot = "0-0-0";
         }
-        else if (m_whiteCastling)
+        else
         {
             algNot = "0-0";
         }
-        else
-        {*/
-        algNot = "Kx";
-        algNot = canTake ? algNot + colToChar + QString::number(rankTo) : 'K' + colToChar + QString::number(rankTo);
-        //}
-    }
 
     qDebug() << algNot;
 
@@ -998,7 +1134,28 @@ QString ChessAlgorithm::toAlgebraic(QChar piece, int colFrom, int rankFrom, int 
 
 QPoint ChessAlgorithm::toCoordinates(QString move)
 {
-
+    if (move.contains("0-0"))
+    {
+        if (currentPlayer() == BlackPlayer)
+        {
+            return QPoint(7, 8);
+        }
+        else if (currentPlayer() == WhitePlayer)
+        {
+            return QPoint(7, 1);
+        }
+    }
+    if (move.contains("0-0-0"))
+    {
+        if (currentPlayer() == BlackPlayer)
+        {
+            return QPoint(3, 8);
+        }
+        else if (currentPlayer() == WhitePlayer)
+        {
+            return QPoint(3, 1);
+        }
+    }
     if (move.contains("x"))
     {
         move.replace("x","");
@@ -1032,11 +1189,36 @@ bool ChessAlgorithm::onBoard(int colTo, int rankTo)
     return true;
 }
 
-bool ChessAlgorithm::check(QString player)
-{
-    QString pieces = "prnbqk";
-    if (player == "white")
-        pieces = "PRNBQK";
+bool ChessAlgorithm::check(bool switchplayer)
+{   
+    // Store the current values.
+    bool enpassentWhite = m_enpassent_white;
+    bool enpassentBlack = m_enpassent_black;
+    bool shortcastleWhite = m_shortcastle_white;
+    bool longcastleWhite = m_longcastle_white;
+
+    bool shortcastle_white = m_shortcastle_white;
+    bool longcastle_white = m_longcastle_white;
+    bool shortcastle_black = m_shortcastle_black;
+    bool longcastle_black = m_longcastle_black;
+
+    QString pieces = "PRNBQK";
+    if (switchplayer)
+    {
+        if (currentPlayer() == WhitePlayer)
+        {
+            m_copy_currentPlayer = BlackPlayer;
+            pieces = "prnbqk";
+        }
+    }
+    else if (!switchplayer)
+    {
+        if (currentPlayer() == BlackPlayer)
+        {
+            m_copy_currentPlayer = BlackPlayer;
+            pieces = "prnbqk";
+        }
+    }
 
     QHash<QPoint, QChar> pos;
 
@@ -1076,9 +1258,29 @@ bool ChessAlgorithm::check(QString player)
         }
     }
 
-    // Get the current poistion of Black King.
+    // Revert.
+    if (enpassentWhite != m_enpassent_white)
+        m_enpassent_white = enpassentWhite;
+    if (enpassentBlack != m_enpassent_black)
+        m_enpassent_black = enpassentBlack;
+    if (shortcastleWhite != m_shortcastle_white)
+        m_shortcastle_white = shortcastleWhite;
+    if (longcastleWhite != m_longcastle_white)
+        m_longcastle_white = longcastleWhite;
+
+    if (shortcastle_white != m_shortcastle_white)
+        m_shortcastle_white = shortcastle_white;
+    if (longcastle_white != m_longcastle_white)
+        m_longcastle_white = longcastle_white;
+    if (shortcastle_black != m_shortcastle_black)
+        m_shortcastle_black = shortcastle_black;
+    if (longcastle_black != m_longcastle_black)
+        m_longcastle_black = longcastle_black;
+
+
+    // Get the current position of Black King.
     QPoint p = board()->point('k');
-    if (player == "black")
+    if (m_copy_currentPlayer == BlackPlayer)
         p = board()->point('K');
     QString kingPos =  QChar('a' + p.y() - 1) + QString::number(p.x());
 
@@ -1097,24 +1299,145 @@ bool ChessAlgorithm::check(QString player)
         }
     }
 
+    // Revert the player.
+    if (switchplayer)
+    {
+        if (m_copy_currentPlayer == BlackPlayer)
+        {
+            m_copy_currentPlayer = WhitePlayer;
+        }
+    }
+
     return check;
 }
 
-void ChessAlgorithm::whiteCastle(ChessBoard::CastleType castleType)
+bool ChessAlgorithm::checkMate()
 {
-    qInfo() << Q_FUNC_INFO;
+    QString pieces = "prnbqk";
+    if (currentPlayer() == BlackPlayer)
+    {
+        pieces = "PRNBQK";
+    }
 
-    if (castleType == ChessBoard::Short)
+    QHash<QPoint, QChar> pos;
+    for (auto piece: pieces)
     {
-        //board()->movePiece(8, 1, 6, 1);
-        //else if (currentPlayer() == BlackPlayer)
-        //    board()->movePiece(8, 8, 6, 8);
+        pos.insert(board()->points(piece));
     }
-    else if (castleType == ChessBoard::Long)
+
+    if (!m_moves.empty()) m_moves.clear();
+    for (auto iter = pos.constBegin(); iter != pos.constEnd(); ++iter)
     {
-        //board()->movePiece(1, 1, 4, 1);
-        //else if (currentPlayer() == BlackPlayer)
-        //    board()->movePiece(1, 8, 4, 8);
+        QChar source = iter.value();
+        QPoint from = iter.key();
+        switch (source.toLatin1())
+        {
+        case 'P': case 'p':
+            setPawnMoves(source, from.x(), from.y());
+            break;
+        case 'N': case 'n':
+            setKnightMoves(source, from.x(), from.y());
+            break;
+        case 'B': case 'b':
+            setBishopMoves(source, from.x(), from.y());
+            break;
+        case 'R': case 'r':
+            setRookMoves(source, from.x(), from.y());
+            break;
+        case 'Q': case 'q':
+            setQueenMoves(source, from.x(), from.y());
+            break;
+        case 'K': case 'k':
+            setKingMoves(source, from.x(), from.y());
+            break;
+        }
+
+        QHash<QString, bool> m_potential_moves = m_moves;
+        if (!m_moves.empty()) m_moves.clear();
+
+        // Get the current position of the piece.
+        for (auto i=m_potential_moves.cbegin(), end=m_potential_moves.cend(); i != end; i++)
+        {
+            // Do the move and call check().
+            QPoint to = toCoordinates(i.key());
+            qDebug() << "From " << from << " to " << to;
+
+            // Do the "UNREAL" move.
+            QChar pieceOnToSource = board()->data(to.x(), to.y());
+            board()->setDataInternal(to.x(), to.y(), board()->data(from.x(), from.y()));
+            board()->setDataInternal(from.x(), from.y(), ' ');
+
+            // Get all current positions of the current player.
+            pieces = "PRNBQK";
+            if (currentPlayer() == BlackPlayer)
+            {
+                pieces = "prnbqk";
+            }
+            QHash<QPoint, QChar> otherPos;
+            for (auto piece: pieces)
+            {
+                otherPos.insert(board()->points(piece));
+            }
+            // For each of these positions get all possible moves and check if that move delivers a check.
+            // If not, this can't be a checkmate.
+            for (auto iter = otherPos.constBegin(); iter != otherPos.constEnd(); ++iter)
+            {
+                source = iter.value();
+                QPoint pt = iter.key();
+                switch (source.toLatin1())
+                {
+                case 'P': case 'p':
+                    setPawnMoves(source, pt.x(), pt.y());
+                    break;
+                case 'N': case 'n':
+                    setKnightMoves(source, pt.x(), pt.y());
+                    break;
+                case 'B': case 'b':
+                    setBishopMoves(source, pt.x(), pt.y());
+                    break;
+                case 'R': case 'r':
+                    setRookMoves(source, pt.x(), pt.y());
+                    break;
+                case 'Q': case 'q':
+                    setQueenMoves(source, pt.x(), pt.y());
+                    break;
+                case 'K': case 'k':
+                    setKingMoves(source, pt.x(), pt.y());
+                    break;
+                }
+            }
+
+            // Get the current position of Black King.
+            QPoint p = board()->point('k');
+            if (currentPlayer() == BlackPlayer)
+                p = board()->point('K');
+            QString kingPos =  QChar('a' + p.y() - 1) + QString::number(p.x());
+
+            QList keyList = m_moves.keys();
+            if (!keyList.contains("Qx"+kingPos) && !keyList.contains("Px"+kingPos) && !keyList.contains("Nx"+kingPos)
+                && !keyList.contains("Rx"+kingPos) && !keyList.contains("Bx"+kingPos))
+            {
+                board()->setDataInternal(from.x(), from.y(), board()->data(to.x(), to.y()));
+                board()->setDataInternal(to.x(), to.y(), ' ');
+                if (!m_moves.empty()) m_moves.clear();
+
+                return false;
+            }
+
+            // Revert the "UNREAL" move.
+            // Check if there was a piece on that spot and get the source.
+            board()->setDataInternal(from.x(), from.y(), board()->data(to.x(), to.y()));
+            board()->setDataInternal(to.x(), to.y(), pieceOnToSource);
+
+            if (!m_moves.empty()) m_moves.clear();
+            if (!keyList.empty()){
+                keyList.clear();
+            }
+        }
+
+        // Clear
+        if (!m_potential_moves.empty()) m_potential_moves.clear();
     }
-    qDebug() << "Move rook!";
+
+    return true;
 }

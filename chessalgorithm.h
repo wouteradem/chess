@@ -19,6 +19,24 @@ class ChessAlgorithm : public QObject
 
     QPointer<ChessBoard> m_board;
 
+    bool m_enpassent_black;
+    bool m_enpassent_white;
+
+    bool m_shortcastle_white;
+    bool m_longcastle_white;
+    bool m_shortcastle_black;
+    bool m_longcastle_black;
+    bool m_whitecastled;
+    bool m_blackcastled;
+
+    bool m_whiteRookMoved;
+    bool m_blackRookMoved ;
+    bool m_whiteKingMoved;
+    bool m_blackKingMoves;
+
+    bool m_whiteCannotCastle;
+    bool m_blackCannotCastle;
+
 public:
     enum Result {NoResult, WhiteWin, BlackWin, Draw, StaleMate};
     Q_ENUM(Result)
@@ -40,7 +58,8 @@ public:
     void setMoves(int colFrom, int rankFrom);
     void setEngineMoves(QString fen);
     QString getFENBoard();
-    bool check(QString player);
+    bool check(bool type);
+    bool checkMate();
 
     QHash<QString, bool> getMoves() const {return m_moves;}
 
@@ -49,7 +68,6 @@ public slots:
     virtual bool move(int colFrom, int rankFrom, int colTo, int rankTo);
     bool move(const QPoint &from, const QPoint &to);
     QPoint toCoordinates(QString move);
-    void whiteCastle(ChessBoard::CastleType);
 
 signals:
     void boardChanged(ChessBoard*);
@@ -58,6 +76,7 @@ signals:
     void unChecked();
     void currentPlayerChanged(Player);
     void currentMoveChanged(QString);
+    void checkYourself();
 
 protected:
     virtual void setupBoard();
@@ -68,7 +87,11 @@ protected:
 
 private:
     Result m_result;
+
+    // A copy is needed for doing some checks.
     Player m_currentPlayer;
+    Player m_copy_currentPlayer;
+
     QString m_currentMove;
     QHash<QString, bool> m_moves;
     QHash<QString, bool> m_engineMoves;
@@ -85,6 +108,7 @@ private:
     void setKingMoves(QChar piece, int colFrom, int rankFrom);
 
     QString toAlgebraic(QChar piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canTake);
+    QString toAlgebraicCastle(QChar piece, int colFrom, int rankFrom, int colTo, int rankTo, bool canCastle);
 
     bool onBoard(int colTo, int rankTo);
 };
