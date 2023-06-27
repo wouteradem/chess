@@ -630,7 +630,7 @@ void ChessAlgorithm::setKingMoves(QChar piece, int colFrom, int rankFrom)
                     {
                        m_longcastle_white = true;
                     }
-                    if (move.contains("Kc1"))
+                    if (move.contains("Kc8"))
                     {
                        m_longcastle_black = true;
                     }
@@ -999,20 +999,22 @@ void ChessAlgorithm::setPawnMoves(QChar piece, int colFrom, int rankFrom)
             m_moves[move] = false;
         }
         // En passant.
+        leftTake = board()->data(colFrom - 1, rankFrom);
+        rightTake = board()->data(colFrom + 1, rankFrom);
         if (rankFrom == 5)
         {
-            leftTake = board()->data(colFrom - 1, rankFrom);
-            rightTake = board()->data(colFrom + 1, rankFrom);
             if (leftTake != ' ' && !whitePieces.contains(leftTake))
             {
-                move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);  
+                move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom + 1, true);
+                m_moves[move] = false;
+                m_enpassent_white = true;
             }
             else if (rightTake != ' ' && !whitePieces.contains(rightTake))
             {
                 move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom + 1, true);
+                m_moves[move] = false;
+                m_enpassent_white = true;
             }
-            m_moves[move] = false;
-            m_enpassent_white = true;
         }
     }
     else if (piece == 'p')
@@ -1046,20 +1048,22 @@ void ChessAlgorithm::setPawnMoves(QChar piece, int colFrom, int rankFrom)
         }
 
         // En passant.
+        leftTake = board()->data(colFrom - 1, rankFrom);
+        rightTake = board()->data(colFrom + 1, rankFrom);
         if (rankFrom == 4)
         {
-            leftTake = board()->data(colFrom - 1, rankFrom);
-            rightTake = board()->data(colFrom + 1, rankFrom);
             if (leftTake != ' ' && !blackPieces.contains(leftTake))
             {
                 move = toAlgebraic(piece, colFrom, rankFrom, colFrom - 1, rankFrom - 1, true);
+                m_enpassent_black = true;
+                m_moves[move] = false;
             }
             else if (rightTake != ' ' && !blackPieces.contains(rightTake))
             {
                 move = toAlgebraic(piece, colFrom, rankFrom, colFrom + 1, rankFrom - 1, true);
+                m_enpassent_black = true;
+                m_moves[move] = false;
             }
-            m_enpassent_black = true;
-            m_moves[move] = false;
         }
     }
 }

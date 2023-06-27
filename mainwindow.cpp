@@ -309,6 +309,7 @@ void MainWindow::gameOver(ChessAlgorithm::Result result)
         text = "It's a draw";
     }
     m_lblCheck->setText("SchaakMat!");
+    m_lblPlayer->setText("");
     QMessageBox::information(this, "Game over!", QStringLiteral("Checkmate! %1").arg(text));
     QApplication::quit();
 }
